@@ -109,11 +109,13 @@ INSERT INTO media_common_publishtolist
 select * from to_insert
 ----
 
-== Is an authority term used in deleted object records?
+== Is an authority term used in a field in deleted object records?
 
 Client could not delete an Archeological Culture Concept authority record. They were getting an error about the term being used in records, but the "Used In" listing in the term record and searching the CS application showed that no records were using the term.
 
-We wanted to verify that there were hidden "deleted" object records lurking in the system, preventing term deletion. 
+We wanted to verify that there were hidden "deleted" object records lurking in the system, preventing term deletion.
+
+This was made easier by the fact that only one field in the object record would have used terms from this particular authority.
 
 [source,sql]
 ----
