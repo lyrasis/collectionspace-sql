@@ -1,0 +1,29 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+
+= CollectionSpace SQL
+
+A place to record tips for working with CollectionSpace data directly in the PostgreSql database
+
+toc::[]
+
+== Conventions
+
+Client-identifying info has been removed from SQL examples and replaced with the following patterns:
+
+`{INSTANCEDOMAIN}` replaces values like `core.collectionspace.org` or `collectionspace.clientdomain.org` in refname values or elsewhere
+
+[source,sql]
+----
+CAST(E'urn:cspace:{INSTANCEDOMAIN}:vocabularies:name(publishto):item:name(all)\'All\'' AS text) AS item
+----
+
+== Contents
+* Getting into database
+* Common patterns/snippets - excluding deleted records, how to find data for a given record from the application UI, etc
+* Functions
+
+== Other resources
+* Nuxeo database documentation: https://doc.nuxeo.com/nxdoc/internal-vcs-model/[Internal VCS Model] --  https://doc.nuxeo.com/nxdoc/vcs-tables/[VCS tables]
+* Some example JasperReports have embedded PGSQL queries to crib from: https://github.com/lyrasis/cspace-deployer/tree/master/docker/dts/production/ohc/reports[ohc] -- https://github.com/lyrasis/cspace-deployer/tree/master/docker/dts/production/mcgill/reports[mcgill]

@@ -1,0 +1,63 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+
+= Common patterns/snippets
+
+
+toc::[]
+
+== All records of a type
+
+=== Person authorities
+
+[source,sql]
+----
+SELECT COUNT(persons.id)
+FROM persons_common persons
+----
+
+=== Objects
+
+[source,sql]
+----
+SELECT COUNT(objs.id)
+FROM collectionobjects_common objs
+----
+
+== Remove deleted records from query
+
+Deleted records persist in the database with a `lifecyclestate` set to `deleted` in the informatively named `misc` table.
+
+=== Active (non-deleted) person authorities
+
+[source,sql]
+----
+SELECT COUNT(persons.id)
+FROM persons_common persons
+INNER JOIN misc ON misc.id = persons.id AND misc.lifecyclestate != 'deleted'
+----
+
+=== Active (non-deleted) objects
+
+[source,sql]
+----
+SELECT COUNT(objs.id)
+FROM collectionobjects_common objs
+INNER JOIN misc ON misc.id = objs.id AND misc.lifecyclestate != 'deleted'
+----
+
+== Data for a known record from application UI
+
+The data for a given record is usually scattered across multiple tables in the database.
+
+Also it's a bit unclear at first how you can find a record in the database using the CSID from the end of a record's URI in the application.
+
+There are at least two methods. Entering via `hierarchy` table is probably the most practical, because you will have to use that table to combine record field data from different tables.
+
+=== Via `hierarchy` table
+
+Assuming URI for the record in the application UI is:
+
+`https://core.collectionspace.org/cspace/core/record/collectionobject/6aaf2595-2257-40f6-83b2`
+

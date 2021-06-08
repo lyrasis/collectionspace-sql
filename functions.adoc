@@ -1,0 +1,31 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+
+= Functions
+
+toc::[]
+
+== id_from_csid
+
+Returns the database internal id from the CSID found at the end of a record URI in the application.
+
+[source,sql]
+----
+create or replace function id_from_csid(csid varchar)
+returns varchar
+language plpgsql
+as
+$$
+declare
+   dbid varchar;
+begin
+   select hierarchy.id
+   into dbid
+   from hierarchy
+   where hierarchy.name = csid;
+   
+   return dbid;
+end;
+$$;
+----
