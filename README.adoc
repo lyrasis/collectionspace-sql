@@ -22,7 +22,8 @@ CAST(E'urn:cspace:{INSTANCEDOMAIN}:vocabularies:name(publishto):item:name(all)\'
 == Contents
 * https://github.com/lyrasis/collectionspace-sql/blob/main/getting_into_database.adoc[Getting into the databases]
 * https://github.com/lyrasis/collectionspace-sql/blob/main/common_patterns.adoc[Common patterns/snippets] - excluding deleted records, how to find data for a given record from the application UI, etc
-* https://github.com/lyrasis/collectionspace-sql/blob/main/functions.adoc[Functions]
+* https://github.com/lyrasis/collectionspace-sql/blob/main/functions.adoc[Functions] - reusable bits
+* https://github.com/lyrasis/collectionspace-sql/blob/main/data_projects.adoc[Data projects] - queries to support actual work
 
 == Other resources
 * Nuxeo database documentation: https://doc.nuxeo.com/nxdoc/internal-vcs-model/[Internal VCS Model] --  https://doc.nuxeo.com/nxdoc/vcs-tables/[VCS tables]

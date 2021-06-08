@@ -1,0 +1,110 @@
+:toc:
+:toc-placement!:
+:toclevels: 2
+
+= Data projects
+
+toc::[]
+
+== Export objectNumber, objectProductionDate, objectName, and namedCollection for all collectionobjects
+
+* if there are multiple values in the objectProductionDate, objectName, or namedCollection fields, take only the value that appears first in the CS record
+* return the dateDisplayDate element for the date field
+* return the first termDisplayName element from the Work authority linked to in namedCollection
+
+[WARNING]
+====
+Somewhat dangerous because it assumes unique objectNumber values across objects. This is not enforced by CS, though I knew it was the case in my data set.
+
+It also does not remove any items marked as deleted. 
+====
+
+[source,sql]
+----
+WITH objects AS (
+  SELECT
+  hier.id AS objid,
+  common.objectnumber AS objnum
+from collectionobjects_common common
+inner join hierarchy hier on hier.id = common.id
+inner join misc on misc.id = hier.id AND misc.lifecyclestate != 'deleted'
+inner join collectionspace_core core on core.id = misc.id
+), prod_date_objs AS (
+	SELECT DISTINCT ON (objects.objnum) objects.objnum, sdg.datedisplaydate AS date
+	FROM hierarchy hier
+	INNER JOIN structureddategroup sdg ON hier.id = sdg.id
+	INNER JOIN objects ON hier.parentid = objects.objid
+	WHERE hier.name = 'collectionobjects_common:objectProductionDateGroupList'
+	ORDER BY objects.objnum ASC, hier.pos ASC
+), named_coll AS (
+	SELECT objects.objnum, wt.termdisplayname AS coll
+	FROM objects
+	INNER JOIN collectionobjects_common_namedcollections nc ON nc.id = objects.objid
+	INNER JOIN works_common wc ON nc.item = wc.refname AND nc.pos = 0
+	INNER JOIN hierarchy hier ON hier.parentid = wc.id AND hier.pos = 0 
+	INNER JOIN worktermgroup wt ON hier.id = wt.id
+), obj_names AS (
+	SELECT DISTINCT ON (objects.objnum) objects.objnum, ong.objectname AS objname
+	FROM hierarchy hier
+	INNER JOIN objectnamegroup ong ON hier.id = ong.id
+	INNER JOIN objects ON hier.parentid = objects.objid
+	WHERE hier.name = 'collectionobjects_common:objectNameList'
+	ORDER BY objects.objnum ASC, hier.pos ASC
+
+)
+
+SELECT objects.objnum, pdo.date, nc.coll, ong.objname
+FROM objects
+LEFT OUTER JOIN prod_date_objs pdo ON pdo.objnum = objects.objnum
+LEFT OUTER JOIN named_coll nc ON nc.objnum = objects.objnum
+LEFT OUTER JOIN obj_names ong ON ong.objnum = objects.objnum
+----
+
+== Publish all media handling procedure records to "All"
+
+* This only handles adding a publishTo value to fields that have nothing in that field.
+
+=== Count of non-deleted MH records published to All
+
+[source,sql]
+----
+SELECT COUNT(mh.id)
+FROM media_common mh
+LEFT JOIN media_common_publishtolist pt ON mh.id = pt.id
+INNER JOIN misc ON misc.id = mh.id AND misc.lifecyclestate != 'deleted'
+WHERE pt.item = E'urn:cspace:{INSTANCEDOMAIN}:vocabularies:name(publishto):item:name(all)\'All\''
+AND mh.identificationnumber IS NOT NULL
+----
+
+=== Count of non-deleted MH records with no publishTo value
+
+[source,sql]
+----
+SELECT COUNT(mh.id)
+FROM media_common mh
+LEFT JOIN media_common_publishtolist pt ON mh.id = pt.id
+INNER JOIN misc ON misc.id = mh.id AND misc.lifecyclestate != 'deleted'
+WHERE pt.id IS NULL
+AND mh.identificationnumber IS NOT NULL
+----
+
+=== Update the publishTo field of unpublished records, setting them to "All"
+
+[source,sql]
+----
+WITH not_published AS (
+SELECT mh.id
+FROM media_common mh
+LEFT JOIN media_common_publishtolist pt ON mh.id = pt.id
+INNER JOIN misc ON misc.id = mh.id AND misc.lifecyclestate != 'deleted'
+WHERE pt.id IS NULL
+AND mh.identificationnumber IS NOT NULL
+), to_insert AS (
+	SELECT not_published.id,
+	CAST(0 AS integer) AS pos,
+	CAST(E'urn:cspace:{INSTANCEDOMAIN}:vocabularies:name(publishto):item:name(all)\'All\'' AS text) AS item
+FROM not_published
+)
+INSERT INTO media_common_publishtolist
+select * from to_insert
+----
