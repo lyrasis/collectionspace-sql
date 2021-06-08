@@ -108,3 +108,77 @@ FROM not_published
 INSERT INTO media_common_publishtolist
 select * from to_insert
 ----
+
+== Is an authority term used in deleted object records?
+
+Client could not delete an Archeological Culture Concept authority record. They were getting an error about the term being used in records, but the "Used In" listing in the term record and searching the CS application showed that no records were using the term.
+
+We wanted to verify that there were hidden "deleted" object records lurking in the system, preventing term deletion. 
+
+[source,sql]
+----
+select oppg.id, h.parentid, m.lifecyclepolicy, m.lifecyclestate from objectproductionpeoplegroup oppg
+inner join hierarchy h
+on h.id = oppg.id
+inner join misc m
+on h.parentid = m.id
+where oppg.objectproductionpeople = 'urn:cspace:{INSTANCEDOMAIN}:conceptauthorities:name(archculture):item:name(Prehistoric1558556422893)''Pre-Contact **DELETE - DO NOT USE **'''
+----
+
+== Copy value from old, single-valued client-custom field to new, multi-valued community profile field
+
+* implemented a single value namedCollection field, populated by Work authority, for a client
+* later added a multi-value namedCollections field, also populated by Work authority, to community profiles
+* to get the client closer to community profile and fix confusion about apparent duplicate fields in search/import/export forms, we needed to migrate their data from the old field to the new field
+
+=== count instances of client-specific field
+
+[source,sql]
+----
+SELECT COUNT(coo.id) FROM public.collectionobjects_ohc coo
+WHERE coo.namedcollection IS NOT NULL
+----
+
+=== count instances of community profile field
+
+[source,sql]
+----
+SELECT COUNT(coc.id) FROM public.collectionobjects_common_namedcollections coc
+WHERE coc.item IS NOT NULL
+----
+
+=== count objects where client-specific field is populated, but community profile field is not
+
+[source,sql]
+----
+SELECT COUNT(coo.id) FROM public.collectionobjects_ohc coo
+LEFT JOIN
+public.collectionobjects_common_namedcollections con
+ON con.id = coo.id
+WHERE 
+con.id IS NULL
+AND coo.namedcollection IS NOT NULL
+----
+
+=== copy values in client-specific field to community profile field
+
+[source,sql]
+----
+INSERT INTO public.collectionobjects_common_namedcollections (id, pos, item)
+SELECT coo.id, 0, coo.namedcollection FROM public.collectionobjects_ohc coo
+LEFT JOIN
+public.collectionobjects_common_namedcollections con
+ON con.id = coo.id
+WHERE 
+con.id IS NULL
+AND coo.namedcollection IS NOT NULL
+----
+
+=== delete values in client-specific field
+
+[source,sql]
+----
+UPDATE public.collectionobjects_ohc
+SET namedcollection = null
+WHERE namedcollection IS NOT NULL
+----
