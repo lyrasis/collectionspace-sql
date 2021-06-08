@@ -20,9 +20,9 @@ CAST(E'urn:cspace:{INSTANCEDOMAIN}:vocabularies:name(publishto):item:name(all)\'
 ----
 
 == Contents
-* Getting into database
-* Common patterns/snippets - excluding deleted records, how to find data for a given record from the application UI, etc
-* Functions
+* https://github.com/lyrasis/collectionspace-sql/blob/main/getting_into_database.adoc[Getting into the databases]
+* https://github.com/lyrasis/collectionspace-sql/blob/main/common_patterns.adoc[Common patterns/snippets] - excluding deleted records, how to find data for a given record from the application UI, etc
+* https://github.com/lyrasis/collectionspace-sql/blob/main/functions.adoc[Functions]
 
 == Other resources
 * Nuxeo database documentation: https://doc.nuxeo.com/nxdoc/internal-vcs-model/[Internal VCS Model] --  https://doc.nuxeo.com/nxdoc/vcs-tables/[VCS tables]

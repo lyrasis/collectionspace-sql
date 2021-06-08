@@ -61,3 +61,50 @@ Assuming URI for the record in the application UI is:
 
 `https://core.collectionspace.org/cspace/core/record/collectionobject/6aaf2595-2257-40f6-83b2`
 
+=== Using `id_from_csid` function
+
+You will need to run https://github.com/lyrasis/collectionspace-sql/blob/main/functions.adoc#id_from_csid[the `id_from_csid` function creation query] before using the following.
+
+[source,sql]
+----
+WITH dbid AS (
+	select id_from_csid('6aaf2595-2257-40f6-83b2') as id
+), thisrec AS (
+	select * from hierarchy h
+	inner join dbid d on h.id = d.id
+), children AS (
+	select * from hierarchy h
+	inner join dbid d on h.parentid = d.id
+), allrows AS (
+	(select * from thisrec)
+     union all
+    (select * from children)
+)
+
+select * from allrows
+----
+
+=== Without the function
+
+Essentially you just rewrite the function in the `WITH dbid AS` portion.
+
+[source,sql]
+----
+WITH dbid AS (
+       select hierarchy.id
+       from hierarchy
+       where hierarchy.name = '6aaf2595-2257-40f6-83b2'
+), thisrec AS (
+	select * from hierarchy h
+	inner join dbid d on h.id = d.id
+), children AS (
+	select * from hierarchy h
+	inner join dbid d on h.parentid = d.id
+), allrows AS (
+	(select * from thisrec)
+     union all
+    (select * from children)
+)
+
+select * from allrows
+----
