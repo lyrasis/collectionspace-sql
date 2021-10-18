@@ -47,6 +47,12 @@ FROM collectionobjects_common objs
 INNER JOIN misc ON misc.id = objs.id AND misc.lifecyclestate != 'deleted'
 ----
 
+== Data on media handling images
+
+In addition to the normal media and blob (subrecord) tables, the `content` table contains data on the original and derivative files.
+
+The `content.data` column can be used to match a given file to an S3 object.
+
 == Data for a known record from application UI
 
 The data for a given record is usually scattered across multiple tables in the database.
