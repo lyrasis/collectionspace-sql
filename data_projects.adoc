@@ -184,3 +184,32 @@ UPDATE public.collectionobjects_ohc
 SET namedcollection = null
 WHERE namedcollection IS NOT NULL
 ----
+
+== Set object publishTo value to public browser for conditionally selected set of objects
+
+Only update objects where:
+
+* objectNumber starts with A, H, or N, and
+* inventoryStatus is NOT deaccessioned, transferred, missing, or stolen, and
+* publishTo value is not NAGPRA or NULL
+[source,sql]
+----
+SELECT coc.objectnumber, coc_inv.item, coc_pub.item FROM collectionobjects_common AS coc
+    LEFT JOIN collectionobjects_common_inventorystatuslist AS coc_inv ON (coc.id = coc_inv.id)
+    LEFT JOIN collectionobjects_common_publishtolist AS coc_pub ON (coc.id = coc_pub.id)
+WHERE (coc.objectnumber LIKE 'A%' OR coc.objectnumber LIKE 'H%' OR coc.objectnumber LIKE 'N%') AND
+((coc_inv.item NOT LIKE '%deaccessioned%' OR coc_inv.item NOT LIKE '%transferred%'OR coc_inv.item NOT LIKE '%missing%' OR coc_inv.item NOT LIKE '%stolen%') OR coc_inv.item IS NULL) AND (coc_pub.item NOT LIKE '%NAGPRA%'OR coc_pub.item IS NULL);
+----
+
+Count how many objects will be affected (208178):
+
+[source,sql]
+----
+SELECT COUNT(coc.objectnumber) FROM collectionobjects_common AS coc
+    LEFT JOIN collectionobjects_common_inventorystatuslist AS coc_inv ON (coc.id = coc_inv.id)
+    LEFT JOIN collectionobjects_common_publishtolist AS coc_pub ON (coc.id = coc_pub.id)
+WHERE (coc.objectnumber LIKE 'A%' OR coc.objectnumber LIKE 'H%' OR coc.objectnumber LIKE 'N%') AND
+((coc_inv.item NOT LIKE '%deaccessioned%' OR coc_inv.item NOT LIKE '%transferred%'OR coc_inv.item NOT LIKE '%missing%' OR coc_inv.item NOT LIKE '%stolen%') OR coc_inv.item IS NULL) AND (coc_pub.item NOT LIKE '%NAGPRA%'OR coc_pub.item IS NULL);
+----
+
+
