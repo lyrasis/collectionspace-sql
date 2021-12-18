@@ -6,6 +6,53 @@
 
 toc::[]
 
+== csid_from_group_id
+
+Takes the id from a row in a field group table (such as `annotationgroup`), and returns the CSID of the record the field group is part of.
+
+[source,sql]
+----
+CREATE OR REPLACE FUNCTION CSID_FROM_GROUP_ID(groupid varchar) RETURNS varchar LANGUAGE PLPGSQL AS $$
+declare csid varchar;
+begin
+select hh.name
+into csid
+from hierarchy h
+left join hierarchy hh on h.parentid = hh.id
+where h.id = groupid;
+
+return csid;
+end;
+$$;
+----
+
+== csid_from_id
+
+Returns the UI/API CSID for a record's database internal ID
+
+Given: d5e13ea2-13f8-41cc-9713-dd32d36dc689
+Expect: 5dffaecc-c80f-4966-a84c
+
+[source,sql]
+----
+create or replace function csid_from_id(dbid varchar)
+returns varchar
+language plpgsql
+as
+$$
+declare
+   csid varchar;
+begin
+   select hierarchy.name
+   into csid
+   from hierarchy
+   where hierarchy.id = dbid;
+   
+   return csid;
+end;
+$$;
+----
+
 == id_from_csid
 
 Returns the database internal id from the CSID found at the end of a record URI in the application.
