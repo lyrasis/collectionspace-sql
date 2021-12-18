@@ -189,27 +189,103 @@ WHERE namedcollection IS NOT NULL
 
 Only update objects where:
 
+* object does not have a 'deleted' workflow state
 * objectNumber starts with A, H, or N, and
 * inventoryStatus is NOT deaccessioned, transferred, missing, or stolen, and
-* publishTo value is not NAGPRA or NULL
+* publishTo value (is set, but is not NAGPRA or Do not publish) OR (publishTo value is not set)
+
+TIP: "publishTo value is set" means there is at least one row in `collectionobjects_common_publishtolist` with `id` matching to `collectionobjects_common` `id`. There can be rows for objects in `collectionobjects_common_publishtolist` with null `item` field. These should be updated with the new value.
+
+This project needed two separate actions: update existing publishTo values meeting criteria, and inserting new publishTo values into records meeting other criteria but having no publishTo values
+
+
+.Update existing publishTo values meeting criteria
 [source,sql]
 ----
-SELECT coc.objectnumber, coc_inv.item, coc_pub.item FROM collectionobjects_common AS coc
-    LEFT JOIN collectionobjects_common_inventorystatuslist AS coc_inv ON (coc.id = coc_inv.id)
-    LEFT JOIN collectionobjects_common_publishtolist AS coc_pub ON (coc.id = coc_pub.id)
-WHERE (coc.objectnumber LIKE 'A%' OR coc.objectnumber LIKE 'H%' OR coc.objectnumber LIKE 'N%') AND
-((coc_inv.item NOT LIKE '%deaccessioned%' OR coc_inv.item NOT LIKE '%transferred%'OR coc_inv.item NOT LIKE '%missing%' OR coc_inv.item NOT LIKE '%stolen%') OR coc_inv.item IS NULL) AND (coc_pub.item NOT LIKE '%NAGPRA%'OR coc_pub.item IS NULL);
+UPDATE collectionobjects_common_publishtolist
+SET item = 'urn:cspace:core.collectionspace.org:vocabularies:name(publishto):item:name(cspacepub)''CollectionSpace Public Browser'''
+WHERE id IN (
+  SELECT coc_pub.id
+  FROM collectionobjects_common AS coc
+  LEFT JOIN collectionobjects_common_inventorystatuslist AS coc_inv ON (coc.id = coc_inv.id)
+  LEFT JOIN collectionobjects_common_publishtolist AS coc_pub ON (coc.id = coc_pub.id)
+  INNER JOIN misc ON misc.id = coc.id AND misc.lifecyclestate != 'deleted'
+  WHERE 
+    (coc.objectnumber LIKE 'A%' OR coc.objectnumber LIKE 'H%' OR coc.objectnumber LIKE 'N%')
+  AND
+    (
+      (coc_inv.item NOT LIKE '%deaccessioned%' OR coc_inv.item NOT LIKE '%transferred%'OR coc_inv.item NOT LIKE '%missing%' OR coc_inv.item NOT LIKE '%stolen%')
+      OR
+      coc_inv.item IS NULL) 
+  AND
+    coc_pub.id IS NOT NULL
+  AND 
+    (
+  	  coc_pub.item IS NULL
+  	  OR
+  	  (coc_pub.item NOT LIKE '%NAGPRA%' AND coc_pub.item NOT LIKE '%Do not publish%')
+    )
+);
 ----
 
-Count how many objects will be affected (208178):
-
+.Insert new publishTo values into records meeting other criteria, but having no existing publishTo values
 [source,sql]
 ----
-SELECT COUNT(coc.objectnumber) FROM collectionobjects_common AS coc
+WITH not_published AS (
+SELECT DISTINCT coc.id FROM collectionobjects_common AS coc
     LEFT JOIN collectionobjects_common_inventorystatuslist AS coc_inv ON (coc.id = coc_inv.id)
     LEFT JOIN collectionobjects_common_publishtolist AS coc_pub ON (coc.id = coc_pub.id)
-WHERE (coc.objectnumber LIKE 'A%' OR coc.objectnumber LIKE 'H%' OR coc.objectnumber LIKE 'N%') AND
-((coc_inv.item NOT LIKE '%deaccessioned%' OR coc_inv.item NOT LIKE '%transferred%'OR coc_inv.item NOT LIKE '%missing%' OR coc_inv.item NOT LIKE '%stolen%') OR coc_inv.item IS NULL) AND (coc_pub.item NOT LIKE '%NAGPRA%'OR coc_pub.item IS NULL);
+    INNER JOIN misc ON misc.id = coc.id AND misc.lifecyclestate != 'deleted'
+WHERE (coc.objectnumber LIKE 'A%' OR coc.objectnumber LIKE 'H%' OR coc.objectnumber LIKE 'N%')
+  AND
+  (
+    (coc_inv.item NOT LIKE '%deaccessioned%' OR coc_inv.item NOT LIKE '%transferred%'OR coc_inv.item NOT LIKE '%missing%' OR coc_inv.item NOT LIKE '%stolen%')
+    OR coc_inv.item IS NULL) 
+  AND coc_pub.id IS NULL
+), to_insert AS (
+  SELECT not_published.id,
+  CAST(0 AS integer) AS pos,
+  CAST('urn:cspace:core.collectionspace.org:vocabularies:name(publishto):item:name(cspacepub)''CollectionSpace Public Browser''' AS text) AS item
+  FROM not_published
+)
+INSERT INTO collectionobjects_common_publishtolist
+SELECT * from to_insert
 ----
 
+.Final count of objects published to public browser
+[source,sql]
+----
+SELECT COUNT(coc.id) FROM collectionobjects_common AS coc
+LEFT JOIN collectionobjects_common_publishtolist AS coc_pub ON (coc.id = coc_pub.id)
+INNER JOIN misc ON misc.id = coc.id AND misc.lifecyclestate != 'deleted'
+WHERE coc_pub.item LIKE '%Public Browser%'
+----
 
+== Indexing errors related to `annotationdate` field
+
+Upon re-indexing, logs showed errors like:
+
+[source]
+----
+org.nuxeo.ecm.core.api.NuxeoException: Could not select: SELECT "id", "annotationauthor", "annotationdate", "annotationtype", "annotationnote" FROM "annotationgroup" WHERE "id" IN (?)
+Caused by: org.postgresql.util.PSQLException: Bad value for type timestamp/date/time: {1}
+Caused by: java.lang.NumberFormatException: Expected time to be colon-separated, got '/'
+----
+
+.Find rows in `annotationgroup` where `annotationdate` value contains `/`
+[source,sql]
+----
+select * from annotationgroup
+where annotationdate LIKE '%/%'
+----
+
+.Get CSIDs of records containing `annotationgroup` entries with `annotationdate` values containing `/`
+[source,sql]
+----
+SELECT HH.NAME AS CSID,
+	AG.ID AS GROUPID
+FROM ANNOTATIONGROUP AG
+LEFT JOIN HIERARCHY H ON AG.ID = H.ID
+LEFT JOIN HIERARCHY HH ON H.PARENTID = HH.ID
+WHERE ANNOTATIONDATE LIKE '%/%';
+----
