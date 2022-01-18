@@ -279,6 +279,19 @@ select * from annotationgroup
 where annotationdate LIKE '%/%'
 ----
 
+For the client, generate a report of object numbers, previous invalid `annotationdate` values, and what you changed them to. The following will give you the first two pieces of that.
+
+[source,sql]
+----
+select cc.objectnumber, ag.annotationdate from annotationgroup ag
+inner join hierarchy h on ag.id = h.id
+inner join hierarchy hh on h.parentid = hh.id
+inner join collectionobjects_common cc on hh.id = cc.id
+where ag.annotationdate LIKE '%/%'
+----
+
+You need a list of the object record CSIDs where this will be fixed, so that only those can be re-indexed. 
+
 .Get CSIDs of records containing `annotationgroup` entries with `annotationdate` values containing `/`
 [source,sql]
 ----
