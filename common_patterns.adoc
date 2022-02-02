@@ -25,6 +25,23 @@ SELECT COUNT(objs.id)
 FROM collectionobjects_common objs
 ----
 
+== Report number of each record type
+
+[source,sql]
+----
+SELECT COUNT(*) AS REC_COUNT, REGEXP_REPLACE(TRIM(LEADING '/' FROM CC.URI), '\/.*', '') AS REC_TYPE
+FROM PUBLIC.COLLECTIONSPACE_CORE CC
+INNER JOIN MISC ON CC.ID = MISC.ID
+AND MISC.LIFECYCLESTATE != 'deleted'
+WHERE CC.URI not like '/contacts%'
+	AND CC.URI not like '/relations%'
+	AND CC.URI not like '/blobs%'
+	AND CC.URI not like '/reports%'
+	AND CC.URI not like '/batch%'
+GROUP BY REC_TYPE
+ORDER BY REC_COUNT DESC
+----
+
 == Remove deleted records from query
 
 Deleted records persist in the database with a `lifecyclestate` set to `deleted` in the informatively named `misc` table.
