@@ -1,0 +1,28 @@
+:toc:
+:toc-placement!:
+:toclevels: 2
+
+= General queries
+
+toc::[]
+
+== Relationships between #{CSID} and #{a record type}
+
+[source,sql]
+----
+SELECT * FROM public.relations_common
+where (subjectcsid = '6f731eab-7cdc-4b12-ad5a'
+and objectdocumenttype = 'CollectionObject')
+or (objectcsid = '6f731eab-7cdc-4b12-ad5a'
+and subjectdocumenttype = 'CollectionObject')
+----
+
+== Count # of records having combination of 2 fields
+
+[source,sql]
+----
+select count(sa.state_active), sa.state_active from
+(SELECT CONCAT(misc.lifecyclestate, '/', rel.active) as state_active FROM public.relations_common rel
+INNER JOIN misc ON misc.id = rel.id) sa
+group by sa.state_active
+----
