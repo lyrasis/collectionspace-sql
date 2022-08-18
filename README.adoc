@@ -28,5 +28,6 @@ CAST(E'urn:cspace:{INSTANCEDOMAIN}:vocabularies:name(publishto):item:name(all)\'
 == Other resources
 * Nuxeo database documentation: https://doc.nuxeo.com/nxdoc/internal-vcs-model/[Internal VCS Model] --  https://doc.nuxeo.com/nxdoc/vcs-tables/[VCS tables]
 * Some example JasperReports have embedded PGSQL queries to crib from:
+** https://github.com/collectionspace/services/tree/master/services/report/3rdparty/jasper-cs-report/src/main/resources[standard reports]
 ** https://github.com/lyrasis/cspace-deployer/tree/master/docker/dts/production/mcgill/reports[mcgill]
 ** https://github.com/lyrasis/cspace-deployer/tree/master/docker/dts/production/ohc/reports[ohc]
