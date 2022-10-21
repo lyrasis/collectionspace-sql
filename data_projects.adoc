@@ -6,6 +6,10 @@
 
 toc::[]
 
+== Report of media handling procedures related to objects that are related to a group procedure
+
+xref:projects/mh_rel_to_objs_in_group[On separate page]
+
 == Export objectNumber, objectProductionDate, objectName, and namedCollection for all collectionobjects
 
 * if there are multiple values in the objectProductionDate, objectName, or namedCollection fields, take only the value that appears first in the CS record
@@ -16,7 +20,7 @@ toc::[]
 ====
 Somewhat dangerous because it assumes unique objectNumber values across objects. This is not enforced by CS, though I knew it was the case in my data set.
 
-It also does not remove any items marked as deleted. 
+It also does not remove any items marked as deleted.
 ====
 
 [source,sql]
@@ -41,7 +45,7 @@ inner join collectionspace_core core on core.id = misc.id
 	FROM objects
 	INNER JOIN collectionobjects_common_namedcollections nc ON nc.id = objects.objid
 	INNER JOIN works_common wc ON nc.item = wc.refname AND nc.pos = 0
-	INNER JOIN hierarchy hier ON hier.parentid = wc.id AND hier.pos = 0 
+	INNER JOIN hierarchy hier ON hier.parentid = wc.id AND hier.pos = 0
 	INNER JOIN worktermgroup wt ON hier.id = wt.id
 ), obj_names AS (
 	SELECT DISTINCT ON (objects.objnum) objects.objnum, ong.objectname AS objname
@@ -157,7 +161,7 @@ SELECT COUNT(coo.id) FROM public.collectionobjects_ohc coo
 LEFT JOIN
 public.collectionobjects_common_namedcollections con
 ON con.id = coo.id
-WHERE 
+WHERE
 con.id IS NULL
 AND coo.namedcollection IS NOT NULL
 ----
@@ -171,7 +175,7 @@ SELECT coo.id, 0, coo.namedcollection FROM public.collectionobjects_ohc coo
 LEFT JOIN
 public.collectionobjects_common_namedcollections con
 ON con.id = coo.id
-WHERE 
+WHERE
 con.id IS NULL
 AND coo.namedcollection IS NOT NULL
 ----
@@ -210,16 +214,16 @@ WHERE id IN (
   LEFT JOIN collectionobjects_common_inventorystatuslist AS coc_inv ON (coc.id = coc_inv.id)
   LEFT JOIN collectionobjects_common_publishtolist AS coc_pub ON (coc.id = coc_pub.id)
   INNER JOIN misc ON misc.id = coc.id AND misc.lifecyclestate != 'deleted'
-  WHERE 
+  WHERE
     (coc.objectnumber LIKE 'A%' OR coc.objectnumber LIKE 'H%' OR coc.objectnumber LIKE 'N%')
   AND
     (
       (coc_inv.item NOT LIKE '%deaccessioned%' OR coc_inv.item NOT LIKE '%transferred%'OR coc_inv.item NOT LIKE '%missing%' OR coc_inv.item NOT LIKE '%stolen%')
       OR
-      coc_inv.item IS NULL) 
+      coc_inv.item IS NULL)
   AND
     coc_pub.id IS NOT NULL
-  AND 
+  AND
     (
   	  coc_pub.item IS NULL
   	  OR
@@ -240,7 +244,7 @@ WHERE (coc.objectnumber LIKE 'A%' OR coc.objectnumber LIKE 'H%' OR coc.objectnum
   AND
   (
     (coc_inv.item NOT LIKE '%deaccessioned%' OR coc_inv.item NOT LIKE '%transferred%'OR coc_inv.item NOT LIKE '%missing%' OR coc_inv.item NOT LIKE '%stolen%')
-    OR coc_inv.item IS NULL) 
+    OR coc_inv.item IS NULL)
   AND coc_pub.id IS NULL
 ), to_insert AS (
   SELECT not_published.id,
@@ -290,7 +294,7 @@ inner join collectionobjects_common cc on hh.id = cc.id
 where ag.annotationdate LIKE '%/%'
 ----
 
-You need a list of the object record CSIDs where this will be fixed, so that only those can be re-indexed. 
+You need a list of the object record CSIDs where this will be fixed, so that only those can be re-indexed.
 
 .Get CSIDs of records containing `annotationgroup` entries with `annotationdate` values containing `/`
 [source,sql]
