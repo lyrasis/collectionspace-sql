@@ -10,6 +10,139 @@ toc::[]
 
 xref:projects/mh_rel_to_objs_in_group[On separate page]
 
+== For a given set of objects, change object hierarchy relationships to nonhierarchical relationships
+
+NOTE: This client's profile has a `descriptionlevel` field in the object record.
+
+Object selection criteria:
+
+* `descriptionlevel` = `item` or `group of items`
+* `responsibledepartment` = `archaeology`, `archaeology-nagpra`, or `ethnographic`
+* `objectnumber` begins with `A`
+
+First, we find all existing hierarchical relationships where the selected objects are children of other objects.
+
+[source,sql]
+----
+WITH depts AS (
+	SELECT id, STRING_AGG(item, '|') AS departments
+	FROM collectionobjects_common_responsibledepartments
+	GROUP BY id
+  ),
+children AS (
+	SELECT DISTINCT cc.id, cc.objectnumber, hier.name AS csid, cohc.descriptionlevel, depts.departments AS dept
+  FROM collectionobjects_common AS cc
+  INNER JOIN collectionobjects_ohc AS cohc ON
+  cc.id = cohc.id AND
+  (cohc.descriptionlevel = 'urn:cspace:cspace.client.org:vocabularies:name(descriptionlevel):item:name(item)''item'''
+   OR
+   cohc.descriptionlevel = 'urn:cspace:cspace.client.org:vocabularies:name(descriptionlevel):item:name(groupofitems1553529920283)''group of items'''
+  )
+  INNER JOIN collectionobjects_common_responsibledepartments AS rd ON
+  cc.id = rd.id AND
+  ( rd.item = 'archaeology'
+      OR
+    rd.item = 'archaeology-nagpra'
+      OR
+    rd.item = 'ethnographic'
+  )
+  INNER JOIN misc ON misc.id = cc.id AND misc.lifecyclestate != 'deleted'
+  INNER JOIN hierarchy AS hier ON cc.id = hier.id
+  LEFT JOIN depts ON cc.id = depts.id
+  WHERE
+  cc.objectnumber LIKE 'A %'
+	)
+SELECT children.objectnumber AS childobjnum,
+REGEXP_REPLACE(children.descriptionlevel, $$.*'(.*)'$$, '\1', 'g') AS childdesclevel,
+children.dept AS childdept,
+rel.subjectcsid AS childcsid,
+rel.relationshiptype,
+cc.objectnumber AS parentobjnum,
+REGEXP_REPLACE(cohc.descriptionlevel, $$.*'(.*)'$$, '\1', 'g') AS parentdesclevel,
+depts.departments AS parentdept,
+rel.objectcsid AS parentcsid
+FROM relations_common rel
+INNER JOIN children ON (
+	children.csid = rel.subjectcsid
+	AND
+	rel.relationshiptype = 'hasBroader'
+	)
+INNER JOIN misc ON misc.id = rel.id AND misc.lifecyclestate != 'deleted'
+INNER JOIN hierarchy hier ON rel.objectcsid = hier.name
+INNER JOIN collectionobjects_common cc ON hier.id = cc.id
+LEFT OUTER JOIN collectionobjects_ohc cohc ON cc.id = cohc.id
+LEFT JOIN depts ON cc.id = depts.id
+----
+
+Then we find all existing non-hierarchical relationships where the selected objects are in a relationship with another object:
+
+[source,sql]
+----
+WITH depts AS (
+	SELECT id, STRING_AGG(item, '|') AS departments
+	FROM collectionobjects_common_responsibledepartments
+	GROUP BY id
+  ),
+children AS (
+	SELECT DISTINCT cc.id, cc.objectnumber, hier.name AS csid, cohc.descriptionlevel, depts.departments AS dept
+  FROM collectionobjects_common AS cc
+  INNER JOIN collectionobjects_ohc AS cohc ON
+  cc.id = cohc.id AND
+  (cohc.descriptionlevel = 'urn:cspace:cspace.client.org:vocabularies:name(descriptionlevel):item:name(item)''item'''
+   OR
+   cohc.descriptionlevel = 'urn:cspace:cspace.client.org:vocabularies:name(descriptionlevel):item:name(groupofitems1553529920283)''group of items'''
+  )
+  INNER JOIN collectionobjects_common_responsibledepartments AS rd ON
+  cc.id = rd.id AND
+  ( rd.item = 'archaeology'
+      OR
+    rd.item = 'archaeology-nagpra'
+      OR
+    rd.item = 'ethnographic'
+  )
+  INNER JOIN misc ON misc.id = cc.id AND misc.lifecyclestate != 'deleted'
+  INNER JOIN hierarchy AS hier ON cc.id = hier.id
+  LEFT JOIN depts ON cc.id = depts.id
+  WHERE
+  cc.objectnumber LIKE 'A %'
+	)
+SELECT children.objectnumber AS childobjnum,
+REGEXP_REPLACE(children.descriptionlevel, $$.*'(.*)'$$, '\1', 'g') AS childdesclevel,
+children.dept AS childdept,
+rel.subjectcsid AS childcsid,
+rel.relationshiptype,
+cc.objectnumber AS parentobjnum,
+REGEXP_REPLACE(cohc.descriptionlevel, $$.*'(.*)'$$, '\1', 'g') AS parentdesclevel,
+depts.departments AS parentdept,
+rel.objectcsid AS parentcsid
+FROM relations_common rel
+INNER JOIN children ON (
+	children.csid = rel.subjectcsid
+	AND
+	rel.relationshiptype = 'affects'
+	)
+INNER JOIN misc ON misc.id = rel.id AND misc.lifecyclestate != 'deleted'
+INNER JOIN hierarchy hier ON rel.objectcsid = hier.name
+INNER JOIN collectionobjects_common cc ON hier.id = cc.id
+LEFT OUTER JOIN collectionobjects_ohc cohc ON cc.id = cohc.id
+LEFT JOIN depts ON cc.id = depts.id
+----
+
+We don't want to needlessly recreate nonhierarchical relations that already exist, so we throw the results of our queries in separate sheets of an Excel workbook for some quick and dirty formula fun.
+
+* create a `relid` for each row by concatenating `parentobjnum` and `childobjnum`
+* use `XMATCH` to mark rows in `existinghier` that are not in `existingnonhier`, comparing `relid`
+* remove the marked rows
+
+We use the remaining rows to populate the nonhierarchicalrelationship CSV template, to import our new nonhierarchical relationships into CS.
+
+We use the final report from the ingest process to populate the objecthierarchy CSV template with data only from successfully created non-hierarchical relationships, so we can ingest the hierarchical relationships for delete.
+
+We can use a similar process (via wrangling in Excel) to identify pairs of objects for which there are both hierarchical and non-hierarchical relationships, and use that to populate an objecthierarchy CSV template for deletes.
+
+The queries can be run again after the work has been done to identify stragglers and issues.
+
+
 == Export objectNumber, objectProductionDate, objectName, and namedCollection for all collectionobjects
 
 * if there are multiple values in the objectProductionDate, objectName, or namedCollection fields, take only the value that appears first in the CS record
