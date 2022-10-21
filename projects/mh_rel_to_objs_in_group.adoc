@@ -1,0 +1,37 @@
+== Report of media handling procedures related to objects that are related to a group procedure
+
+[source,sql]
+----
+WITH objects AS
+(
+  SELECT orel.objectcsid AS objcsid
+  FROM relations_common orel
+  -- this magic number is the CSID of the group record related to the
+  --   target objects
+  WHERE (subjectcsid = '613dbd7a-fc1a-4630-af3e'
+    AND objectdocumenttype = 'CollectionObject')
+),
+mh AS
+(
+  SELECT DISTINCT hier.id
+  FROM objects
+  INNER JOIN relations_common mhrel ON objects.objcsid = mhrel.subjectcsid
+  AND mhrel.objectdocumenttype = 'Media'
+  INNER JOIN HIERARCHY hier ON hier.name = mhrel.objectcsid
+)
+SELECT med.identificationnumber,
+STRING_AGG(
+  REGEXP_REPLACE(
+    REGEXP_REPLACE(PT.ITEM, '''$', ''),
+    '^.*''',
+    ''
+  ),
+  ', '
+) AS publishto, med.title, med.blobcsid
+FROM media_common med
+INNER JOIN mh ON mh.id = med.id
+INNER JOIN misc ON misc.id = med.id
+AND misc.lifecyclestate != 'deleted'
+LEFT JOIN media_common_publishtolist pt ON med.id = pt.id
+GROUP BY med.id
+----
