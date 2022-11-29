@@ -47,10 +47,30 @@ begin
    into csid
    from hierarchy
    where hierarchy.id = dbid;
-   
+
    return csid;
 end;
 $$;
+----
+
+== deurn
+
+Extract value from refname URN
+
+[source,sql]
+----
+create or replace function deurn(urn varchar)
+returns varchar
+language plpgsql
+as
+$Q$
+declare
+  deurned varchar;
+begin
+  deurned := REGEXP_REPLACE(urn, $$.*'(.*)'$$, '\1', 'g');
+  return deurned;
+end;
+$Q$;
 ----
 
 == id_from_csid
@@ -71,7 +91,7 @@ begin
    into dbid
    from hierarchy
    where hierarchy.name = csid;
-   
+
    return dbid;
 end;
 $$;
