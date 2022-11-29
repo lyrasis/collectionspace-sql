@@ -21,7 +21,7 @@ WHERE HIER.PRIMARYTYPE = 'structuredDateGroup'
 
 Returns detailed date values for a given field.
 
-Run the DEURN function before running the query.
+Run the https://github.com/lyrasis/collectionspace-sql/blob/main/functions.adoc#deurn[DEURN function] before running the query.
 
 === Collectionobject
 ==== objectProductionDateGroup
