@@ -35,7 +35,7 @@ with dates as (
     HIER.ID,
     REC.OBJECTNUMBER,
     concat(
-      'https://domain/cspace/tenant/record/collectionobject/',
+      'https://domain/cspace/tenant/record/all/',
       ph.name
     ) as rec_url
   FROM
@@ -92,7 +92,7 @@ with dates as(
     HIER.ID,
     cc.objectnumber,
     concat(
-      'https://domain/cspace/tenant/record/collectionobject/',
+      'https://domain/cspace/tenant/record/all/',
       objhier.name
     ) as rec_url
   FROM
@@ -144,33 +144,18 @@ WHERE
 
 [source,sql]
 ----
-WITH VOCABS AS (
-  SELECT
-    HIER.NAME AS ID,
-    REPLACE(
-      REPLACE(
-        SHORTIDENTIFIER, 'cona_work', 'cona'
-      ),
-      'work',
-      'local'
-    ) AS VOCAB
-  FROM
-    WORKAUTHORITIES_COMMON WC
-    INNER JOIN HIERARCHY HIER ON WC.ID = HIER.ID
-),
-DATES AS (
+WITH DATES AS (
   SELECT
     HIER.ID,
     DEURN(WC.REFNAME) AS TERM,
     CONCAT(
-      'https://domain/cspace/tenant/record/work/',
-      V.VOCAB, '/', PH.NAME
+      'https://domain/cspace/tenant/record/all/',
+      PH.NAME
     ) AS RECURL
   FROM
     HIERARCHY HIER
     INNER JOIN WORKS_COMMON WC ON HIER.PARENTID = WC.ID
     INNER JOIN HIERARCHY PH ON HIER.PARENTID = PH.ID
-    INNER JOIN VOCABS V ON WC.INAUTHORITY = V.ID
   WHERE
     HIER.PRIMARYTYPE = 'structuredDateGroup'
     AND HIER.NAME = 'works_common:workDateGroupList'
