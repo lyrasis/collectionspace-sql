@@ -67,7 +67,11 @@ $Q$
 declare
   deurned varchar;
 begin
-  deurned := REGEXP_REPLACE(urn, $$.*'(.*)'$$, '\1', 'g');
+  deurned := REGEXP_REPLACE(
+	  REGEXP_REPLACE(
+	  REGEXP_REPLACE(urn, $$^urn:.*item:name\([^)]+\)$$, ''),
+	  '''$', ''),
+	  $$^'$$, '');
   return deurned;
 end;
 $Q$;
