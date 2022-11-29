@@ -23,6 +23,62 @@ Returns detailed date values for a given field.
 
 Run the https://github.com/lyrasis/collectionspace-sql/blob/main/functions.adoc#deurn[DEURN function] before running the query.
 
+=== Acquisition
+==== accessionDateGroup
+
+[source,sql]
+----
+with dates as (
+  SELECT
+    HIER.ID,
+    REC.acquisitionreferencenumber,
+    concat(
+      'https://domain/cspace/tenant/record/all/',
+      ph.name
+    ) as rec_url
+  FROM
+    HIERARCHY HIER
+    INNER JOIN ACQUISITIONS_COMMON REC ON HIER.PARENTID = REC.ID
+    inner join hierarchy ph on hier.parentid = ph.id
+  WHERE
+    HIER.PRIMARYTYPE = 'structuredDateGroup'
+    AND HIER.NAME = 'acquisitions_common:accessionDateGroup'
+)
+SELECT
+  D.acquisitionreferencenumber,
+  D.rec_url,
+  SD.DATEDISPLAYDATE,
+  SD.SCALARVALUESCOMPUTED,
+  SD.DATEEARLIESTSCALARVALUE,
+  SD.DATELATESTSCALARVALUE,
+  SD.DATEEARLIESTSINGLEYEAR,
+  SD.DATEEARLIESTSINGLEMONTH,
+  SD.DATEEARLIESTSINGLEDAY,
+  DEURN(SD.DATEEARLIESTSINGLEERA) as dateearliestsingleera,
+  DEURN(SD.DATEEARLIESTSINGLECERTAINTY) as dateearliestsinglecertainty,
+  DEURN(SD.DATEEARLIESTSINGLEQUALIFIER) as dateearliestsinglequalifier,
+  SD.DATEEARLIESTSINGLEQUALIFIERVALUE,
+  DEURN(
+    SD.DATEEARLIESTSINGLEQUALIFIERUNIT
+  ) as dateearliestsinglequalifierunit,
+  SD.DATELATESTYEAR,
+  SD.DATELATESTMONTH,
+  SD.DATELATESTDAY,
+  DEURN(SD.DATELATESTERA) as datelatestera,
+  DEURN(SD.DATELATESTCERTAINTY) as datelatestcertainty,
+  DEURN(SD.DATELATESTQUALIFIER) as datelatestqualifier,
+  SD.DATELATESTQUALIFIERVALUE,
+  DEURN(SD.DATELATESTQUALIFIERUNIT) as datelatestqualifierunit,
+  SD.DATEPERIOD,
+  SD.DATEASSOCIATION,
+  SD.DATENOTE
+FROM
+  STRUCTUREDDATEGROUP SD
+  INNER JOIN DATES D ON SD.ID = D.ID
+WHERE
+  SD.DATEDISPLAYDATE IS NOT NULL
+----
+
 === Collectionobject
 ==== objectProductionDateGroup
 
