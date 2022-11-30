@@ -55,6 +55,68 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
+== Exhibitions with count of related objects
+
+[source,sql]
+----
+with relct as (
+  select
+    hier.name,
+    count(rel.objectcsid) as rels
+  from
+    public.relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'Exhibition'
+    and rel.objectdocumenttype = 'CollectionObject'
+  group by
+    hier.name
+)
+select
+  rec.exhibitionnumber,
+  concat(
+    'https://domain/cspace/tenant/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  exhibitions_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
+== Groups with count of related objects
+
+[source,sql]
+----
+with relct as (
+  select
+    hier.name,
+    count(rel.objectcsid) as rels
+  from
+    public.relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'Group'
+    and rel.objectdocumenttype = 'CollectionObject'
+  group by
+    hier.name
+)
+select
+  rec.title,
+  concat(
+    'https://domain/cspace/tenant/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  groups_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
 == Loansin with count of related objects
 
 [source,sql]
