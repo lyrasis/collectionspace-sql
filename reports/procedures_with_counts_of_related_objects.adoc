@@ -2,30 +2,11 @@
 :toc-placement!:
 :toclevels: 4
 
-= Relationship reports
+= Procedures with counts of related objects
 
 toc::[]
 
-== All objects with Computed current location values
-
-Where there is no Computed current location, that field is null
-
-[source,sql]
-----
-select
-  cc.objectnumber,
-  concat(
-      'https://domain/cspace/tenant/record/all/',
-      hier.name
-    ) as rec_url,
-  deurn(cc.computedcurrentlocation) as computedcurrentlocation
-from collectionobjects_common cc
-inner join misc on misc.id = cc.id and misc.lifecyclestate != 'deleted'
-inner join hierarchy hier on cc.id = hier.id
-----
-
-== Procedure with count of related objects
-=== Acquisitions with count of related objects
+== Acquisitions with count of related objects
 
 [source,sql]
 ----
@@ -56,7 +37,7 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
-=== Exhibitions with count of related objects
+== Exhibitions with count of related objects
 
 [source,sql]
 ----
@@ -87,7 +68,7 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
-=== Groups with count of related objects
+== Groups with count of related objects
 
 [source,sql]
 ----
@@ -118,7 +99,7 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
-=== Loansin with count of related objects
+== Loansin with count of related objects
 
 [source,sql]
 ----
@@ -149,7 +130,7 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
-=== Movements (LMI) with count of related objects
+== Movements (LMI) with count of related objects
 
 [source,sql]
 ----
@@ -175,39 +156,6 @@ select
   rc.rels
 from
   movements_common rec
-  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
-  inner join hierarchy hier on rec.id = hier.id
-  left outer join relct rc on hier.name = rc.name
-----
-
-== Procedures with count of related procedures
-
-=== Loans In with count of related Insurance/Indemnity
-
-[source,sql]
-----
-with relct as (
-  SELECT
-    hier.name,
-    count(rel.objectcsid) as rels
-  FROM
-    relations_common rel
-    inner join hierarchy hier on rel.subjectcsid = hier.name
-  where
-    rel.subjectdocumenttype = 'Loanin'
-    and rel.objectdocumenttype = 'Insurance'
-  group by
-    hier.name
-)
-select
-  rec.loaninnumber,
-  concat(
-    'https://domain/cspace/tenant/record/all/',
-    hier.name
-  ) as rec_url,
-  rc.rels
-from
-  loansin_common rec
   inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
   inner join hierarchy hier on rec.id = hier.id
   left outer join relct rc on hier.name = rc.name

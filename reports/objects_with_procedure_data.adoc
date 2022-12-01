@@ -1,0 +1,119 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+
+= Objects with procedure data
+
+toc::[]
+
+== Location/movement/inventory (LMI)
+=== Objects with Computed current location values
+
+Where there is no Computed current location, that field is null
+
+[source,sql]
+----
+select
+  cc.objectnumber,
+  concat(
+      'https://domain/cspace/tenant/record/all/',
+      hier.name
+    ) as rec_url,
+  deurn(cc.computedcurrentlocation) as computedcurrentlocation
+from collectionobjects_common cc
+inner join misc on misc.id = cc.id and misc.lifecyclestate != 'deleted'
+inner join hierarchy hier on cc.id = hier.id
+----
+
+== Valuation control
+=== Objects with count of related Valuation Controls
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'CollectionObject'
+    and rel.objectdocumenttype = 'Valuationcontrol'
+  group by
+    hier.name
+)
+select
+  rec.objectnumber,
+  concat(
+    'https://domain/cspace/tenant/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  collectionobjects_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
+=== Object latest valuation report
+
+Documented in https://collectionspace.atlassian.net/wiki/spaces/COL/pages/2672361473/Report+Details+Object+Valuation+DRAFT+WORK+IN+PROGRESS[CS Report Repository]
+
+This runs report an all active Objects
+
+[source,sql]
+----
+WITH objects AS (
+SELECT
+hier.id AS objid,
+hier.name AS objcsid,
+common.objectnumber AS objnum
+from collectionobjects_common common
+inner join hierarchy hier on hier.id = common.id
+inner join misc on misc.id = hier.id AND misc.lifecyclestate != 'deleted'
+),
+
+obj_titles AS (
+SELECT objects.objnum, otg.title AS title
+FROM hierarchy hier
+INNER JOIN titlegroup otg ON hier.id = otg.id AND hier.name = 'collectionobjects_common:titleGroupList' AND hier.pos = 0
+INNER JOIN objects ON hier.parentid = objects.objid
+),
+
+obj_names AS (
+SELECT objects.objnum, ong.objectname AS objname
+FROM hierarchy hier
+INNER JOIN objectnamegroup ong ON hier.id = ong.id AND hier.name = 'collectionobjects_common:objectNameList' AND hier.pos = 0
+INNER JOIN objects ON hier.parentid = objects.objid
+),
+
+obj_latest_val AS (
+select distinct on (objects.objcsid) objects.objcsid, rc.objectcsid as vccsid, hier.id as vcid,
+vc.valuationcontrolrefnumber, vc.valuedate, vc.valuetype, va.valueamount,
+(select count(*) from relations_common where subjectcsid = rc.objectcsid and objectdocumenttype = 'CollectionObject') as rel_objs
+from objects
+inner join relations_common rc on rc.subjectcsid = objects.objcsid and rc.objectdocumenttype = 'Valuationcontrol'
+inner join hierarchy hier on hier.name = rc.objectcsid
+inner join misc on misc.id = hier.id AND misc.lifecyclestate != 'deleted'
+inner join collectionspace_core core on hier.id = core.id
+inner join valuationcontrols_common vc on hier.id = vc.id
+inner join hierarchy avh on avh.parentid = hier.id and avh.primarytype = 'valueAmounts' and avh.pos = 0
+inner join valueamounts va on avh.id = va.id
+order by objects.objcsid, coalesce(vc.valuedate, core.createdat) DESC
+)
+
+SELECT objects.objnum, ot.title, ong.objname,
+bd.item AS briefdesc,
+olv.valuationcontrolrefnumber AS valuationid, olv.valuedate, olv.valuetype, olv.rel_objs, olv.valueamount,
+CASE
+  WHEN olv.rel_objs = 0 THEN NULL
+  WHEN olv.rel_objs = 1 THEN olv.valueamount
+  ELSE olv.valueamount / olv.rel_objs  END calculatedValue
+FROM objects
+LEFT OUTER JOIN obj_titles ot ON ot.objnum = objects.objnum
+LEFT OUTER JOIN obj_names ong ON ong.objnum = objects.objnum
+LEFT OUTER JOIN collectionobjects_common_briefdescriptions bd ON bd.id = objects.objid AND bd.pos = 0
+LEFT OUTER JOIN obj_latest_val olv ON olv.objcsid = objects.objcsid
+----
