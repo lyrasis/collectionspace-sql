@@ -6,6 +6,38 @@
 
 toc::[]
 
+== Condition Check
+=== Objects with count of related Condition Checks
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'CollectionObject'
+    and rel.objectdocumenttype = 'Conditioncheck'
+  group by
+    hier.name
+)
+select
+  rec.objectnumber,
+  concat(
+    'https://domain/cspace/tenant/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  collectionobjects_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
 == Location/movement/inventory (LMI)
 === Objects with Computed current location values
 
@@ -25,7 +57,40 @@ inner join misc on misc.id = cc.id and misc.lifecyclestate != 'deleted'
 inner join hierarchy hier on cc.id = hier.id
 ----
 
-== Valuation control
+== Object Exit
+
+=== Objects with count of related Object Exits
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'CollectionObject'
+    and rel.objectdocumenttype = 'ObjectExit'
+  group by
+    hier.name
+)
+select
+  rec.objectnumber,
+  concat(
+    'https://domain/cspace/tenant/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  collectionobjects_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
+== Valuation Control
 === Objects with count of related Valuation Controls
 
 [source,sql]
