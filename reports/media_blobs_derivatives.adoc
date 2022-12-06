@@ -1,0 +1,123 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+
+= Media, blobs, and derivatives
+
+toc::[]
+
+
+Returns rows with titles (FullHD, Medium, Small, Thumbnail) of derivatives, given a Media Handling procedure CSID:
+
+[source,sql]
+----
+select med.identificationnumber, content.name, view.title
+from media_common med
+inner join hierarchy hier on med.id = hier.id
+inner join hierarchy bh on med.blobcsid = bh.name
+inner join blobs_common bc on bh.id = bc.id
+inner join content on content.data = bc.digest
+inner join hierarchy ch on content.id = ch.id
+inner join hierarchy dh on ch.parentid = dh.parentid AND dh.name = 'views'
+inner join view on view.id = dh.id
+where hier.name = '96972d0b-d2b4-49e2-8a16'
+----
+
+DB spelunking notes:
+
+....
+hierarchy
+id: f60381c7-9f43-4051-b922-709fed616bb8
+parentid: a936fbc1-495b-4d95-a1f7-e3529f279561
+name: csws
+primarytype: Domain
+isproperty: false
+
+hierarchy
+id: 93186b7a-a673-4b18-b92f-4c340abceb94
+parentid: f60381c7-9f43-4051-b922-709fed616bb8
+name: Workspaces
+primarytype: WorkspaceRoot
+isproperty: false
+
+hierarchy
+id: 051c7df6-c3b2-485c-9a4a-b9f76df100ad
+parentid: 93186b7a-a673-4b18-b92f-4c340abceb94
+name: Blobs
+primarytype: Workspace
+isproperty: false
+
+hierarchy
+id: b5d5d5bf-33d1-4cdd-b467-8a9b8e1547dd
+parentid: 051c7df6-c3b2-485c-9a4a-b9f76df100ad
+name: 9ad6ee4b-ffcc-472e-a451-d7eca382f2cd
+primarytype: Workspace
+isproperty: false
+
+
+---
+media_common
+id: 5ae47ee2-3395-4004-90d5-880cbfeb3618
+blobcsid: e3297bad-c60d-4218-b780
+identificationnumber: MR Ben012.2.tif
+
+hierarchy
+id: e545d2d5-9afe-4f0c-8ef5-70049fee54f6
+parentid: 051c7df6-c3b2-485c-9a4a-b9f76df100ad
+name: e3297bad-c60d-4218-b780
+primarytype: Blob
+isproperty: false
+
+blobs_common
+id: e545d2d5-9afe-4f0c-8ef5-70049fee54f6
+digest: 82266690d87e404dd4514f7101d4adb1
+repositoryid: d6a822b9-08bf-4b17-a6e7-9b480d13f7cd
+name: Ben012.2.tif
+---
+
+hierarchy
+id: 93658547-8bc7-44a9-9413-05bc1e381ae1
+parentid: b5d5d5bf-33d1-4cdd-b467-8a9b8e1547dd
+name: Ben012.2.tif
+primarytype: Picture
+isproperty: false
+
+---
+content
+id: 28b808c0-61d0-4e53-a1f2-7908189607d8
+data: 82266690d87e404dd4514f7101d4adb1
+name: Ben012.2.tif
+
+hierarchy
+id: 28b808c0-61d0-4e53-a1f2-7908189607d8
+parentid: 93658547-8bc7-44a9-9413-05bc1e381ae1
+name: content
+primarytype: content
+isproperty: true
+
+imageinfo
+id: 7f9881b3-d0ed-45f1-b183-6d963adeb1a6
+colorspace, depth, width, format (TIFF), height
+
+hierarchy
+id: 7f9881b3-d0ed-45f1-b183-6d963adeb1a6
+parentid: 93658547-8bc7-44a9-9413-05bc1e381ae1
+name: info
+primarytype: imageinfo
+isproperty: true
+
+5 rows with name views/primary type view -- the derivatives
+---
+
+hierarchy
+id: 0031112c-9ec0-4355-8b53-a4d1f0549b71
+parentid: 93658547-8bc7-44a9-9413-05bc1e381ae1
+name: views
+primarytype: view
+isproperty: true
+
+view
+id: 0031112c-9ec0-4355-8b53-a4d1f0549b71
+filename: Small_Ben012.2.jpg
+title: Small
+....
