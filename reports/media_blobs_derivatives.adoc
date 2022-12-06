@@ -23,6 +23,9 @@ inner join view on view.id = dh.id
 where hier.name = '96972d0b-d2b4-49e2-8a16'
 ----
 
+WARNING: The above query returns 5 rows that look normal/ok, when an API call on `blob/derivatives` for the same CSID returns count of 0.
+
+
 DB spelunking notes:
 
 ....
