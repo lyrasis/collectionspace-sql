@@ -8,6 +8,7 @@ toc::[]
 
 
 == Derivatives for blobs attached to media
+
 Returns rows with titles (FullHD, Medium, Small, Thumbnail) of derivatives, given a Media Handling procedure CSID:
 
 [source,sql]
@@ -27,6 +28,31 @@ where hier.name = '96972d0b-d2b4-49e2-8a16'
 
 WARNING: The above query returns 5 rows that look normal/ok, when an API call on `blob/derivatives` for the same CSID returns count of 0.
 
+== Orphaned blobs
+
+Returns CSIDs of blobs not associated with a media handling procedure
+
+[source,sql]
+----
+with oblobs as (
+	(
+  select bc.id from blobs_common bc
+  inner join misc on misc.id = bc.id and misc.lifecyclestate != 'deleted'
+	)
+	EXCEPT
+  (
+    select bc.id
+    from media_common med
+    inner join hierarchy hier on med.id = hier.id
+    inner join hierarchy bh on med.blobcsid = bh.name
+    inner join blobs_common bc on bh.id = bc.id
+    inner join misc on misc.id = med.id and misc.lifecyclestate != 'deleted'
+    inner join misc mb on mb.id = bc.id and misc.lifecyclestate != 'deleted'
+  )
+	)
+select * from hierarchy hier
+inner join oblobs on oblobs.id = hier.id
+----
 
 DB spelunking notes:
 
