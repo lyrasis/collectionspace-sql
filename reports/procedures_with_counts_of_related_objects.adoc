@@ -192,6 +192,37 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
+== Media with count of related objects
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    public.relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'Media'
+    and rel.objectdocumenttype = 'CollectionObject'
+  group by
+    hier.name
+)
+select
+  rec.identificationnumber,
+  concat(
+    'https://domain/cspace/tenant/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  media_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
 == Movements (LMI) with count of related objects
 
 [source,sql]
