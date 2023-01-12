@@ -50,7 +50,7 @@ with oblobs as (
     inner join misc mb on mb.id = bc.id and misc.lifecyclestate != 'deleted'
   )
 	)
-select * from hierarchy hier
+select hier.name AS csid, 'blob' as rectype from hierarchy hier
 inner join oblobs on oblobs.id = hier.id
 ----
 
