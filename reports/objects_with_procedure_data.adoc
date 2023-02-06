@@ -70,6 +70,38 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
+== Exhibition
+=== Objects with count of related Exhibitions
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'CollectionObject'
+    and rel.objectdocumenttype = 'Exhibition'
+  group by
+    hier.name
+)
+select
+  rec.objectnumber,
+  concat(
+    'https://domain/cspace/tenant/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  collectionobjects_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
 == Location/movement/inventory (LMI)
 === Objects with Computed current location values
 
