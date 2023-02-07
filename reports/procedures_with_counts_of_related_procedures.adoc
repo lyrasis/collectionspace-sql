@@ -39,6 +39,70 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
+== Exhibitions
+
+=== Exhibitions with count of related Loans In
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'Exhibition'
+    and rel.objectdocumenttype = 'Loanin'
+  group by
+    hier.name
+)
+select
+  rec.exhibitionnumber,
+  concat(
+    'https://domain/cspace/tenant/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  exhibitions_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
+=== Exhibitions with count of related Loans Out
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'Exhibition'
+    and rel.objectdocumenttype = 'Loanout'
+  group by
+    hier.name
+)
+select
+  rec.exhibitionnumber,
+  concat(
+    'https://domain/cspace/tenant/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  exhibitions_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
 == Loans In
 
 === Loans In with count of related Exhibitions
