@@ -195,6 +195,64 @@ WHERE
   SD.DATEDISPLAYDATE IS NOT NULL
 ----
 
+=== Object exit
+==== exitDateGroup
+
+Non-repeatable structured date field not nested in another field group
+
+[source,sql]
+----
+with dates as (
+  SELECT
+    HIER.ID,
+    REC.exitnumber,
+    concat(
+      'https://domain/cspace/tenant/record/all/',
+      ph.name
+    ) as rec_url
+  FROM
+    hierarchy hier
+    INNER JOIN objectexit_common rec ON hier.parentid = rec.id
+    inner join hierarchy ph on hier.parentid = ph.id
+  WHERE
+    hier.primarytype = 'structuredDateGroup'
+    AND hier.name = 'objectexit_common:exitDateGroup'
+)
+SELECT
+  D.exitnumber,
+  D.rec_url,
+  SD.DATEDISPLAYDATE,
+  SD.SCALARVALUESCOMPUTED,
+  SD.DATEEARLIESTSCALARVALUE,
+  SD.DATELATESTSCALARVALUE,
+  SD.DATEEARLIESTSINGLEYEAR,
+  SD.DATEEARLIESTSINGLEMONTH,
+  SD.DATEEARLIESTSINGLEDAY,
+  DEURN(SD.DATEEARLIESTSINGLEERA) as dateearliestsingleera,
+  DEURN(SD.DATEEARLIESTSINGLECERTAINTY) as dateearliestsinglecertainty,
+  DEURN(SD.DATEEARLIESTSINGLEQUALIFIER) as dateearliestsinglequalifier,
+  SD.DATEEARLIESTSINGLEQUALIFIERVALUE,
+  DEURN(
+    SD.DATEEARLIESTSINGLEQUALIFIERUNIT
+  ) as dateearliestsinglequalifierunit,
+  SD.DATELATESTYEAR,
+  SD.DATELATESTMONTH,
+  SD.DATELATESTDAY,
+  DEURN(SD.DATELATESTERA) as datelatestera,
+  DEURN(SD.DATELATESTCERTAINTY) as datelatestcertainty,
+  DEURN(SD.DATELATESTQUALIFIER) as datelatestqualifier,
+  SD.DATELATESTQUALIFIERVALUE,
+  DEURN(SD.DATELATESTQUALIFIERUNIT) as datelatestqualifierunit,
+  SD.DATEPERIOD,
+  SD.DATEASSOCIATION,
+  SD.DATENOTE
+FROM
+  STRUCTUREDDATEGROUP SD
+  INNER JOIN DATES D ON SD.ID = D.ID
+WHERE
+  SD.DATEDISPLAYDATE IS NOT NULL
+----
+
 === Works
 ==== workDateGroup
 
