@@ -238,9 +238,6 @@ select
   rec.objectnumber,
   concat(
     'https://domain/cspace/tenant/record/all/',
-=======
-      'https://domain/cspace/tenant/record/all/',
->>>>>>> main
     hier.name
   ) as rec_url,
   rc.rels
