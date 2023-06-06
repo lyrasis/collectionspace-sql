@@ -114,8 +114,8 @@ children as (
 	from hierarchy hier
 	inner join kept on kept.id = hier.parentid
 	where hier.primarytype in ('annotationGroup', 'materialGroup', 'otherNumber', 'structuredDateGroup',
-							   'objectNameGroup', 'objectProductionPlaceGroup', 'objectProductionPersonGroup',
-							   'objectProductionOrganizationGroup')
+				   'objectNameGroup', 'objectProductionPlaceGroup', 'objectProductionPersonGroup',
+				   'objectProductionOrganizationGroup')
 ),
 annotations as (
 	select children.parentid as id,
@@ -279,16 +279,16 @@ broader5 as (
    broader4.broader2,
    broader4.broader3,
    broader4.broader4,
-	rel.objectrefname as broader5refname,
+   rel.objectrefname as broader5refname,
    deurn(rel.objectrefname) as broader5
-	from broader4
+   from broader4
   left outer join relations_common rel on broader4.broader4refname = rel.subjectrefname
   where rel.relationshiptype = 'hasBroader'
 	and broader4.broader4 not like 'Category %'
 ),
 namehier as (
 	select concat_ws(' > ',
-					 broader5.broader5,
+	broader5.broader5,
 	broader4.broader4,
 	broader3.broader3,
 	broader2.broader2,
@@ -374,49 +374,49 @@ accdates as (
 	group by accdate.objid
 )
 
-	select kept.objectnumber,
-	kept.computedcurrentlocation,
-	kept.responsibledepartment,
-	invstat.status as inventorystatus,
-	objname.objectname,
-	onh.objectname_hierarchy,
-	nv.numbervalue,
-	nt.numbertype,
-	nc.namedcollection,
-	bd.briefdescription,
-	kept.numberofobjects,
-	mg.material,
-	pd.objectproductiondate,
-	per.objectproductionperson,
-	org.objectproductionorganization,
-	place.objectproductionplace,
-	kept.letteredparts,
-	appsize.apparelsizes,
-	an.annotationnote,
-	aa.annotationauthor,
-	kept.objecthistorynote,
-	anums.acquisitionreferencenumber,
-	ameths.acquisitionmethod,
-	aso.acquisitionsource,
-	accdates.accessiondate
-	from kept
-	left outer join invstatconcat invstat on kept.id = invstat.id
-	left outer join descsconcat bd on kept.id = bd.id
-	left outer join namedcollsconcat nc on kept.id = nc.id
-	left outer join numtypes nt on kept.id = nt.id
-	left outer join numvals nv on kept.id = nv.id
-	left outer join sizesconcat appsize on kept.id = appsize.id
-	left outer join proddates pd on kept.id = pd.id
-	left outer join annotationnotes an on kept.id = an.id
-	left outer join annotationauthors aa on kept.id = aa.id
-	left outer join materials mg on kept.id = mg.id
-	left outer join prodpersons per on kept.id = per.id
-	left outer join prodorgs org on kept.id = org.id
-	left outer join prodplaces place on kept.id = place.id
-	left outer join objectnames objname on kept.id = objname.id
-	left outer join objnamehiers onh on kept.id = onh.id
-	left outer join acqnums anums on kept.id = anums.objid
-	left outer join acqmethods ameths on kept.id = ameths.objid
-	left outer join acqsrcsforobj aso on kept.id = aso.objid
-	left outer join accdates on kept.id = accdates.objid
+select kept.objectnumber,
+kept.computedcurrentlocation,
+kept.responsibledepartment,
+invstat.status as inventorystatus,
+objname.objectname,
+onh.objectname_hierarchy,
+nv.numbervalue,
+nt.numbertype,
+nc.namedcollection,
+bd.briefdescription,
+kept.numberofobjects,
+mg.material,
+pd.objectproductiondate,
+per.objectproductionperson,
+org.objectproductionorganization,
+place.objectproductionplace,
+kept.letteredparts,
+appsize.apparelsizes,
+an.annotationnote,
+aa.annotationauthor,
+kept.objecthistorynote,
+anums.acquisitionreferencenumber,
+ameths.acquisitionmethod,
+aso.acquisitionsource,
+accdates.accessiondate
+from kept
+left outer join invstatconcat invstat on kept.id = invstat.id
+left outer join descsconcat bd on kept.id = bd.id
+left outer join namedcollsconcat nc on kept.id = nc.id
+left outer join numtypes nt on kept.id = nt.id
+left outer join numvals nv on kept.id = nv.id
+left outer join sizesconcat appsize on kept.id = appsize.id
+left outer join proddates pd on kept.id = pd.id
+left outer join annotationnotes an on kept.id = an.id
+left outer join annotationauthors aa on kept.id = aa.id
+left outer join materials mg on kept.id = mg.id
+left outer join prodpersons per on kept.id = per.id
+left outer join prodorgs org on kept.id = org.id
+left outer join prodplaces place on kept.id = place.id
+left outer join objectnames objname on kept.id = objname.id
+left outer join objnamehiers onh on kept.id = onh.id
+left outer join acqnums anums on kept.id = anums.objid
+left outer join acqmethods ameths on kept.id = ameths.objid
+left outer join acqsrcsforobj aso on kept.id = aso.objid
+left outer join accdates on kept.id = accdates.objid
 ----
