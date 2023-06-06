@@ -2,6 +2,8 @@
 
 Also involves representation of authority hierarchy (broader classes for terms used in objects).
 
+Requires https://github.com/lyrasis/collectionspace-sql/blob/main/functions.adoc#deurn[deurn function] to be run prior to running the query.
+
 [source,sql]
 ----
 with baseobjs as (
