@@ -1,0 +1,420 @@
+== Custom report for hosted client, involving combination of object and acquisition data
+
+Also involves representation of authority hierarchy (broader classes for terms used in objects).
+
+[source,sql]
+----
+with baseobjs as (
+  select distinct on (obj.id) obj.id, hier.name as objectcsid,
+	obj.objectnumber, obj.numberofobjects, obj.objecthistorynote,
+	obj.physicaldescription as letteredparts,
+	deurn(obj.computedcurrentlocation) as computedcurrentlocation
+  from collectionobjects_common obj
+  INNER JOIN misc ON misc.id = obj.id AND misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on obj.id = hier.id
+  where obj.objectnumber like 'H%'
+  and obj.computedcurrentlocation ~ '.*''WH0[1356].*'
+  order by obj.id asc
+),
+histdeptobjids as (
+  select respdept.id
+  from collectionobjects_common_responsibledepartments respdept
+  inner join baseobjs on baseobjs.id = respdept.id
+  where respdept.item = 'history'
+),
+histdepts as (
+	select respdept.id, respdept.item as dept
+	from collectionobjects_common_responsibledepartments respdept
+	where exists (
+		select 1 from baseobjs where respdept.id = baseobjs.id
+	)
+    order by respdept.pos
+),
+respdepts as (
+	select histdepts.id, string_agg(histdepts.dept, '|') as responsibledepartment
+	from histdepts
+	group by histdepts.id
+),
+histobj as (
+  select baseobjs.*, respdepts.responsibledepartment
+  from baseobjs
+  inner join respdepts on baseobjs.id = respdepts.id
+),
+deaccessioned as (
+	select invstat.id
+	from collectionobjects_common_inventorystatuslist invstat
+	where invstat.item like '%''deaccessioned'''
+	and exists (
+		select 1 from histobj where histobj.id = invstat.id
+	)
+),
+kept as (
+	select histobj.*
+	from histobj
+	where not exists (
+		select 1 from deaccessioned where deaccessioned.id = histobj.id
+	)
+),
+invstat as (
+	select invstat.id, deurn(invstat.item) as status
+	from collectionobjects_common_inventorystatuslist invstat
+	where exists (
+		select 1 from kept where kept.id = invstat.id
+	)
+	order by invstat.pos
+),
+invstatconcat as (
+	select invstat.id, string_agg(invstat.status, '|') as status
+	from invstat
+	group by invstat.id
+),
+descs as (
+	select bd.id, bd.item from collectionobjects_common_briefdescriptions bd
+	where bd.item is not null
+	and exists (select 1 from kept where kept.id = bd. id)
+	order by bd.pos
+),
+descsconcat as (
+	select bd.id, string_agg(bd.item, '|') as briefdescription
+	from descs bd
+	group by bd.id
+),
+namedcolls as (
+	select nc.id, deurn(nc.item) as item
+	from collectionobjects_common_namedcollections nc
+	where nc.item is not null
+	and exists (select 1 from kept where kept.id = nc.id)
+	order by nc.pos
+),
+namedcollsconcat as (
+	select namedcolls.id, string_agg(namedcolls.item, '|') as namedcollection
+	from namedcolls
+	group by namedcolls.id
+),
+sizes as (
+	select appsize.id, deurn(appsize.item) as item
+	from collectionobjects_ohc_apparelsizes appsize
+	where appsize.item is not null
+	and exists (select 1 from kept where kept.id = appsize.id)
+	order by appsize.pos
+),
+sizesconcat as (
+	select sizes.id, string_agg(sizes.item, '|') as apparelsizes
+	from sizes
+	group by sizes.id
+),
+children as (
+	select hier.id,
+	hier.parentid,
+	hier.pos,
+	hier.name,
+	hier.primarytype
+	from hierarchy hier
+	inner join kept on kept.id = hier.parentid
+	where hier.primarytype in ('annotationGroup', 'materialGroup', 'otherNumber', 'structuredDateGroup',
+							   'objectNameGroup', 'objectProductionPlaceGroup', 'objectProductionPersonGroup',
+							   'objectProductionOrganizationGroup')
+),
+annotations as (
+	select children.parentid as id,
+	coalesce(deurn(ann.annotationauthor), 'NULLVALUE') as annotationauthor,
+	coalesce(ann.annotationnote, 'NULLVALUE') as annotationnote
+	from annotationgroup ann
+	inner join children on children.id = ann.id
+	where not (ann.annotationauthor is null and ann.annotationnote is null)
+	order by children.parentid, children.pos
+),
+annotationnotes as (
+	select ann.id, string_agg(ann.annotationnote, '|') as annotationnote
+	from annotations ann
+	group by ann.id
+),
+annotationauthors as (
+	select ann.id, string_agg(ann.annotationauthor, '|') as annotationauthor
+	from annotations ann
+	group by ann.id
+),
+nums as (
+	select children.parentid as id,
+	coalesce(nums.numbertype, 'NULLVALUE') as numbertype,
+	coalesce(nums.numbervalue, 'NULLVALUE') as numbervalue
+	from othernumber nums
+	inner join children on children.id = nums.id
+	where not (nums.numbertype is null and nums.numbervalue is null)
+	order by children.parentid, children.pos
+),
+numvals as (
+	select nums.id, string_agg(nums.numbervalue, '|') as numbervalue
+	from nums
+	group by nums.id
+),
+numtypes as (
+	select nums.id, string_agg(nums.numbertype, '|') as numbertype
+	from nums
+	group by nums.id
+),
+mats as (
+	select children.parentid as id,
+	coalesce(deurn(mg.material), 'NULLVALUE') as material
+	from materialgroup mg
+	inner join children on children.id = mg.id
+	where mg.material is not null
+	order by children.parentid, children.pos
+),
+materials as (
+	select mg.id, string_agg(mg.material, '|') as material
+	from mats mg
+	group by mg.id
+),
+proddates as (
+  select children.parentid as id, string_agg(sd.datedisplaydate, '|') as objectproductiondate
+  from children
+  inner join structureddategroup sd on children.id = sd.id
+  where children.name = 'collectionobjects_common:objectProductionDateGroupList'
+  group by children.parentid
+),
+prodperson as (
+	select children.parentid as id,
+	coalesce(deurn(per.objectproductionperson), 'NULLVALUE') as objectproductionperson
+	from objectproductionpersongroup per
+	inner join children on children.id = per.id
+	where per.objectproductionperson is not null
+	order by children.parentid, children.pos
+),
+prodpersons as (
+	select per.id, string_agg(per.objectproductionperson, '|') as objectproductionperson
+	from prodperson per
+	group by per.id
+),
+prodorg as (
+	select children.parentid as id,
+	coalesce(deurn(org.objectproductionorganization), 'NULLVALUE') as objectproductionorganization
+	from objectproductionorganizationgroup org
+	inner join children on children.id = org.id
+	where org.objectproductionorganization is not null
+	order by children.parentid, children.pos
+),
+prodorgs as (
+	select org.id, string_agg(org.objectproductionorganization, '|') as objectproductionorganization
+	from prodorg org
+	group by org.id
+),
+prodplace as (
+	select children.parentid as id,
+	coalesce(deurn(place.objectproductionplace), 'NULLVALUE') as objectproductionplace
+	from objectproductionplacegroup place
+	inner join children on children.id = place.id
+	where place.objectproductionplace is not null
+	order by children.parentid, children.pos
+),
+prodplaces as (
+	select place.id, string_agg(place.objectproductionplace, '|') as objectproductionplace
+	from prodplace place
+	group by place.id
+),
+objname as (
+	select children.parentid as id,
+	oname.objectname
+	from objectnamegroup oname
+	inner join children on children.id = oname.id
+	where oname.objectname is not null
+	order by children.parentid, children.pos
+),
+uniqnames as (
+  select distinct objname.objectname as namerefname,
+	deurn(objname.objectname) as objectname
+	from objname
+),
+broader1 as (
+  select uniqnames.namerefname,
+	uniqnames.objectname,
+	rel.objectrefname as broader1refname,
+	deurn(rel.objectrefname) as broader1
+	from uniqnames
+  left outer join relations_common rel on uniqnames.namerefname = rel.subjectrefname
+  where rel.relationshiptype = 'hasBroader'
+),
+broader2 as (
+  select broader1.namerefname,
+   broader1.objectname,
+   broader1.broader1,
+   rel.objectrefname as broader2refname,
+   deurn(rel.objectrefname) as broader2
+	from broader1
+  left outer join relations_common rel on broader1.broader1refname = rel.subjectrefname
+  where rel.relationshiptype = 'hasBroader'
+	and broader1.broader1 not like 'Category %'
+),
+broader3 as (
+  select broader2.namerefname,
+   broader2.objectname,
+   broader2.broader1,
+   broader2.broader2,
+	rel.objectrefname as broader3refname,
+   deurn(rel.objectrefname) as broader3
+	from broader2
+  left outer join relations_common rel on broader2.broader2refname = rel.subjectrefname
+  where rel.relationshiptype = 'hasBroader'
+	and broader2.broader2 not like 'Category %'
+),
+broader4 as (
+  select broader3.namerefname,
+   broader3.objectname,
+   broader3.broader1,
+   broader3.broader2,
+   broader3.broader3,
+	rel.objectrefname as broader4refname,
+   deurn(rel.objectrefname) as broader4
+	from broader3
+  left outer join relations_common rel on broader3.broader3refname = rel.subjectrefname
+  where rel.relationshiptype = 'hasBroader'
+	and broader3.broader3 not like 'Category %'
+),
+broader5 as (
+  select broader4.namerefname,
+   broader4.objectname,
+   broader4.broader1,
+   broader4.broader2,
+   broader4.broader3,
+   broader4.broader4,
+	rel.objectrefname as broader5refname,
+   deurn(rel.objectrefname) as broader5
+	from broader4
+  left outer join relations_common rel on broader4.broader4refname = rel.subjectrefname
+  where rel.relationshiptype = 'hasBroader'
+	and broader4.broader4 not like 'Category %'
+),
+namehier as (
+	select concat_ws(' > ',
+					 broader5.broader5,
+	broader4.broader4,
+	broader3.broader3,
+	broader2.broader2,
+	broader1.broader1) as namehier,
+	uniqnames.objectname,
+	uniqnames.namerefname
+	from uniqnames
+	left outer join broader1 on uniqnames.namerefname = broader1.namerefname
+	left outer join broader2 on uniqnames.namerefname = broader2.namerefname
+    left outer join broader3 on uniqnames.namerefname = broader3.namerefname
+    left outer join broader4 on uniqnames.namerefname = broader4.namerefname
+    left outer join broader5 on uniqnames.namerefname = broader5.namerefname
+),
+objectnames as (
+	select oname.id, string_agg(uname.objectname, '|') as objectname
+	from objname oname
+	inner join uniqnames uname on uname.namerefname = oname.objectname
+	group by oname.id
+),
+objnamehiers as (
+	select oname.id, string_agg(onh.namehier, '|') as objectname_hierarchy
+	from objname oname
+	inner join namehier onh on onh.namerefname = oname.objectname
+	group by oname.id
+),
+relacq as (
+  select kept.id as objid, acq.id as acqid, acq.acquisitionreferencenumber, acq.acquisitionmethod
+  from relations_common rel
+  inner join kept on kept.objectcsid = rel.subjectcsid
+  inner join hierarchy hier on rel.objectcsid = hier.name
+  inner join acquisitions_common acq on acq.id = hier.id
+  where rel.objectdocumenttype = 'Acquisition'
+),
+acqnums as (
+	select relacq.objid, string_agg(relacq.acquisitionreferencenumber, '|') as acquisitionreferencenumber
+	from relacq
+	group by relacq.objid
+),
+acqmethods as (
+	select relacq.objid, string_agg(relacq.acquisitionmethod, '|') as acquisitionmethod
+	from relacq
+	group by relacq.objid
+),
+acqsrc as (
+	select src.id as acqid,
+	deurn(src.item) as item
+	from acquisitions_common_acquisitionsources src
+	where src.item is not null
+	order by src.pos
+),
+acqsrcs as (
+  select acqsrc.acqid, string_agg(deurn(acqsrc.item), '^^') as acquisitionsource
+  from acqsrc
+  group by acqsrc.acqid
+),
+acqsrcsforobj as (
+	select relacq.objid, string_agg(acqsrcs.acquisitionsource, '|') as acquisitionsource
+	from acqsrcs
+	inner join relacq on relacq.acqid = acqsrcs.acqid
+	group by relacq.objid
+),
+acqchildren as (
+  select hier.id as dateid,
+	hier.parentid as acqid,
+	hier.name as name
+  from hierarchy hier
+  where hier.primarytype = 'structuredDateGroup'
+	and exists (
+	  select 1 from relacq
+	  where relacq.acqid = hier.parentid
+    )
+),
+accdate as (
+  select relacq.objid, relacq.acqid, sd.datedisplaydate as accessiondate
+  from relacq
+	inner join acqchildren ac on relacq.acqid = ac.acqid
+  inner join structureddategroup sd on ac.dateid = sd.id
+  where ac.name = 'acquisitions_common:accessionDateGroup'
+),
+accdates as (
+	select accdate.objid, string_agg(accdate.accessiondate, '|') as accessiondate
+	from accdate
+	group by accdate.objid
+)
+
+	select kept.objectnumber,
+	kept.computedcurrentlocation,
+	kept.responsibledepartment,
+	invstat.status as inventorystatus,
+	objname.objectname,
+	onh.objectname_hierarchy,
+	nv.numbervalue,
+	nt.numbertype,
+	nc.namedcollection,
+	bd.briefdescription,
+	kept.numberofobjects,
+	mg.material,
+	pd.objectproductiondate,
+	per.objectproductionperson,
+	org.objectproductionorganization,
+	place.objectproductionplace,
+	kept.letteredparts,
+	appsize.apparelsizes,
+	an.annotationnote,
+	aa.annotationauthor,
+	kept.objecthistorynote,
+	anums.acquisitionreferencenumber,
+	ameths.acquisitionmethod,
+	aso.acquisitionsource,
+	accdates.accessiondate
+	from kept
+	left outer join invstatconcat invstat on kept.id = invstat.id
+	left outer join descsconcat bd on kept.id = bd.id
+	left outer join namedcollsconcat nc on kept.id = nc.id
+	left outer join numtypes nt on kept.id = nt.id
+	left outer join numvals nv on kept.id = nv.id
+	left outer join sizesconcat appsize on kept.id = appsize.id
+	left outer join proddates pd on kept.id = pd.id
+	left outer join annotationnotes an on kept.id = an.id
+	left outer join annotationauthors aa on kept.id = aa.id
+	left outer join materials mg on kept.id = mg.id
+	left outer join prodpersons per on kept.id = per.id
+	left outer join prodorgs org on kept.id = org.id
+	left outer join prodplaces place on kept.id = place.id
+	left outer join objectnames objname on kept.id = objname.id
+	left outer join objnamehiers onh on kept.id = onh.id
+	left outer join acqnums anums on kept.id = anums.objid
+	left outer join acqmethods ameths on kept.id = ameths.objid
+	left outer join acqsrcsforobj aso on kept.id = aso.objid
+	left outer join accdates on kept.id = accdates.objid
+----
