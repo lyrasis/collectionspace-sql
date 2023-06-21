@@ -23,6 +23,7 @@ https://github.com/lyrasis/collectionspace-sql/blob/main/projects/custom_natural
 
 [source,sql]
 ----
+-- Non-soft-deleted objects with specified responsibledepartment
 with nhobjs as (
   select distinct on (obj.id) obj.id, hier.name as objectcsid,
 	obj.objectnumber, obj.numberofobjects, obj.collection,
@@ -36,6 +37,7 @@ with nhobjs as (
 	on depts.id = obj.id and depts.item = 'natural-history'
   order by obj.id asc
 ),
+-- ids of nhobjs with an inventorystatus value `deaccessioned`
 deaccessioned as (
 	select invstat.id
 	from collectionobjects_common_inventorystatuslist invstat
@@ -44,6 +46,7 @@ deaccessioned as (
 		select 1 from nhobjs where nhobjs.id = invstat.id
 	)
 ),
+-- Non-deaccessioned natural history objects -- the base objects for our report
 objs as (
 	select nhobjs.*
 	from nhobjs
@@ -51,6 +54,7 @@ objs as (
 		select 1 from deaccessioned where deaccessioned.id = nhobjs.id
 	)
 ),
+-- Rows from hierarchy table needed to link objs to repeatable field group tables
 children as (
 	select hier.id,
 	hier.parentid,
@@ -62,6 +66,7 @@ children as (
 	where hier.primarytype in ('annotationGroup', 'localityGroup', 'objectNameGroup',
 							   'otherNumber', 'structuredDateGroup', 'taxonomicIdentGroup')
 ),
+-- One row per responsibledeparment value for objs, sorted by position
 respdept as (
 	select respdept.id, respdept.item as dept
 	from collectionobjects_common_responsibledepartments respdept
@@ -70,11 +75,13 @@ respdept as (
 	)
     order by respdept.pos
 ),
+-- One row per objs id, with responsibledepartment values concatenated with |
 respdepts as (
 	select respdept.id, string_agg(respdept.dept, '|') as responsibledepartment
 	from respdept
 	group by respdept.id
 ),
+-- One row per inventorystatus value for objs, sorted by position
 invstat as (
 	select invstat.id, deurn(invstat.item) as status
 	from collectionobjects_common_inventorystatuslist invstat
@@ -83,11 +90,13 @@ invstat as (
 	)
 	order by invstat.pos
 ),
+-- One row per objs id, with inventorystatus values concatenated with |
 invstatconcat as (
 	select invstat.id, string_agg(invstat.status, '|') as status
 	from invstat
 	group by invstat.id
 ),
+-- One row per annotation group populated for objs
 annotations as (
 	select children.parentid as id, ann.annotationnote
 	from annotationgroup ann
@@ -95,11 +104,13 @@ annotations as (
 	where ann.annotationnote is not null
 	order by children.parentid, children.pos
 ),
+-- One row per objs id, with annotationnote values concatenated with |
 annotationnotes as (
 	select ann.id, string_agg(ann.annotationnote, '|') as annotationnote
 	from annotations ann
 	group by ann.id
 ),
+-- One row per taxonomic identification group populated for objs
 taxids as (
 	select children.parentid as id,
 	grp.taxon as taxonrefname,
@@ -109,6 +120,9 @@ taxids as (
 	inner join children on children.id = grp.id
 	order by children.parentid, children.pos
 ),
+-- Unique taxon refnames recorded in taxonomic identification scientific name fields for objs
+--   For each, adds deurned taxon name and taxon rank (a non-repeatable field)
+--   Note that this does not pull in rank for non-preferred forms of Taxon terms used in object records.
 taxa as (
 	select distinct(tax.taxonrefname),
 	tc.id,
@@ -118,6 +132,7 @@ taxa as (
 	left join taxon_common tc on tc.refname = tax.taxonrefname
 	where tax.taxonrefname is not null
 ),
+-- Hierarchy table rows needed to link taxa to commonnamegroup table
 taxachildren as (
 	select hier.id,
 	hier.parentid,
@@ -128,6 +143,7 @@ taxachildren as (
 	inner join taxa on taxa.id = hier.parentid
 	where hier.primarytype = 'commonNameGroup'
 ),
+-- One row per commonnamegroup populated for taxa
 commonname as (
 	select taxachildren.parentid as id, cn.commonname
 	from commonnamegroup cn
@@ -135,11 +151,15 @@ commonname as (
 	where cn.commonname is not null
 	order by taxachildren.parentid, taxachildren.pos
 ),
+-- One row per taxon record in which common names are assigned, with names concatenated with " | "
 commonnames as (
 	select cn.id, string_agg(cn.commonname, ' | ') as commonname
 	from commonname cn
 	group by cn.id
 ),
+-- One row per taxon (taxa subquery)
+--  If there is a rank value for the taxon, prepend "rank: " to the value
+--  If there is a concatenated commonnames value for the for the taxon, prepend "common name(s): " to the value
 taxadata as (
 	select taxa.taxonrefname,
 	taxa.taxon,
@@ -152,12 +172,14 @@ taxadata as (
 	from taxa
 	left join commonnames cn on cn.id = taxa.id
 ),
+-- The previous subquery, but we have concatenated in `details` field any non-null rank and common name values with "; "
 taxadatacomb as (
 	select tx.taxonrefname,
 	tx.taxon,
 	concat_ws('; ', tx.taxonrank, tx.commonname) as details
 	from taxadata tx
 ),
+-- The previous subquery, but now we have, in `taxonwithdetail` field, created the formatted taxon-with-details string
 taxadatacombformat as (
 	select tx.taxonrefname,
 	case when tx.details = '' then tx.taxon
@@ -165,6 +187,9 @@ taxadatacombformat as (
 	end as taxonwithdetail
 	from taxadatacomb tx
 ),
+-- For each taxonomic id group populated in objs, merge in the taxon-with-details string, and replace
+--   null kind and notes values with NULLVALUE to retain proper position of each value when repeated
+--   (when the values are concatenated in the following steps)
 taxiddata as (
 	select tid.id,
 	tid.taxonrefname,
@@ -174,16 +199,19 @@ taxiddata as (
 	from taxids tid
 	left join taxadatacombformat td on td.taxonrefname = tid.taxonrefname
 ),
+-- One row per objs id, with taxon-with-details data concatenated with ' ||| '
 taxonforobj as (
 	select td.id, string_agg(td.taxon, ' ||| ') as taxon
 	from taxiddata td
 	group by td.id
 ),
+-- One row per objs id, with kind values concatenated with ' ||| '
 taxonkindforobj as (
 	select td.id, string_agg(td.kind, ' ||| ') as kind
 	from taxiddata td
 	group by td.id
 ),
+-- One row per objs id, with notes values concatenated with ' ||| '
 taxonnotesforobj as (
 	select td.id, string_agg(td.notes, ' ||| ') as notes
 	from taxiddata td
