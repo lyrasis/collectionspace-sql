@@ -1,0 +1,9 @@
+"note","determination_taxon","determination_kind","determination_notes"
+"Multiple taxonomic identification groups populated, with varying taxon info recorded","Acrydium arenosum ||| Tetrix arenosa (rank: species; common name(s): Ornate Pygmy Grasshopper) ||| Paratettix cucullatus (rank: species; common name(s): Hooded Grouse Locust)","NULLVALUE ||| nomenclatural change ||| original label determination","Mislabeled in catalog book ||| Mislabeled in catalog book ||| As recorded on specimen label"
+"No Taxonomic identification data recorded",,,
+"NULLVALUE padding in determination_notes","Goniocotes gigas ||| Goniodes gigas (rank: species; common name(s): Louse)","original label determination ||| nomenclatural change","NULLVALUE ||| Host: Chicken"
+"Preferred and non-preferred terms from one Taxon record assigned in object","Menispermum canadense (rank: species; common name(s): Canadian Moonseed | Common Moonseed) ||| Menispermum canadensis","nomenclatural change ||| original label determination","NULLVALUE ||| NULLVALUE"
+"Taxon has no rank or common name data","Limestone, Pittsburgh","NULLVALUE","NULLVALUE"
+"Taxon includes rank but no common names","Orthosoma brunneum (rank: species)","NULLVALUE","NULLVALUE"
+"Taxon with common name but no rank","Favosites (common name(s): Coral)","NULLVALUE","NULLVALUE"
+"Taxon with rank and multiple common names","Noctuidae (rank: family; common name(s): Noctuid Moths | Cutworms | Dagger Moths | Owlet Moths | Underwings)","NULLVALUE","NULLVALUE"
