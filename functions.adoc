@@ -77,6 +77,26 @@ end;
 $Q$;
 ----
 
+== shortid_auth
+
+Extract shortId value from refname URN for an authority term
+
+[source,sql]
+----
+create or replace function shortid_auth(urn varchar)
+returns varchar
+language plpgsql
+as
+$Q$
+declare
+  sid varchar;
+begin
+  sid := substring(urn from '^urn:.*item:name\(([^)]+)\)');
+  return sid;
+end;
+$Q$;
+----
+
 == id_from_csid
 
 Returns the database internal id from the CSID found at the end of a record URI in the application.
