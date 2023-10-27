@@ -64,6 +64,21 @@ FROM collectionobjects_common objs
 INNER JOIN misc ON misc.id = objs.id AND misc.lifecyclestate != 'deleted'
 ----
 
+== Relationships
+
+=== Refname of terms in a specific authority vocabulary that have child terms
+
+The example uses concept/associated.
+
+[source,sql]
+----
+select distinct objectrefname
+from relations_common
+where relationshiptype = 'hasBroader'
+and subjectdocumenttype = 'conceptitem'
+and subjectrefname like '%:name(concept):%'
+----
+
 == Data on media handling images
 
 In addition to the normal media and blob (subrecord) tables, the `content` table contains data on the original and derivative files.

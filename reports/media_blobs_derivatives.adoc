@@ -7,13 +7,13 @@
 toc::[]
 
 
-== Derivatives for blobs attached to media
+== Derivatives for blobs attached to a given media CSID
 
 Returns rows with titles (FullHD, Medium, Small, Thumbnail) of derivatives, given a Media Handling procedure CSID:
 
 [source,sql]
 ----
-select med.identificationnumber, content.name, view.title
+select med.identificationnumber, content.name, view.title, ii.width, ii.height
 from media_common med
 inner join misc on misc.id = med.id and misc.lifecyclestate != 'deleted'
 inner join hierarchy hier on med.id = hier.id
@@ -23,10 +23,39 @@ inner join content on content.data = bc.digest
 inner join hierarchy ch on content.id = ch.id
 inner join hierarchy dh on ch.parentid = dh.parentid AND dh.name = 'views'
 inner join view on view.id = dh.id
+inner join hierarchy iih on iih.parentid = view.id AND iih.name = 'info'
+inner join imageinfo ii on iih.id = ii.id
 where hier.name = '96972d0b-d2b4-49e2-8a16'
 ----
 
 WARNING: The above query returns 5 rows that look normal/ok, when an API call on `blob/derivatives` for the same CSID returns count of 0.
+
+== Counts of derivatives for blobs created after given date
+
+[source,sql]
+----
+with cts as (
+	select med.id, count(view.title) as derivct
+from media_common med
+inner join misc on misc.id = med.id and misc.lifecyclestate != 'deleted'
+inner join hierarchy hier on med.id = hier.id
+inner join hierarchy bh on med.blobcsid = bh.name
+inner join blobs_common bc on bh.id = bc.id
+inner join collectionspace_core cc on cc.id = bc.id and cc.createdat > '2022-10-05'
+inner join misc bm on bm.id = cc.id and bm.lifecyclestate != 'deleted'
+inner join content on content.data = bc.digest
+inner join hierarchy ch on content.id = ch.id
+inner join hierarchy dh on ch.parentid = dh.parentid AND dh.name = 'views'
+inner join view on view.id = dh.id
+inner join hierarchy iih on iih.parentid = view.id AND iih.name = 'info'
+inner join imageinfo ii on iih.id = ii.id AND ii.width is not null
+group by med.id
+)
+select med.identificationnumber, hier.name as mediacsid, med.blobcsid, cts.derivct
+from media_common med
+inner join cts on cts.id = med.id
+inner join hierarchy hier on hier.id = med.id
+----
 
 == Orphaned blobs
 
