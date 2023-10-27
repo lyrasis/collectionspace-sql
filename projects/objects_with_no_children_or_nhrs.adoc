@@ -1,0 +1,40 @@
+== Custom report for hosted client, involving combination of object and acquisition data
+
+This is a custom report for a hosted client. It produces a list of object numbers for objects meeting their criteria:
+
+* `descriptionlevel` = `collection` or `supporting collection`
+* `responsibledepartment` starts with `archaeology`
+* related to no other objects via a non-hierarchical ("affects") relationship
+* has no child objects via hierarchical relationship
+
+[source,sql]
+----
+with baseobjs as (
+  select distinct on (obj.id) obj.id, hier.name as objectcsid,
+	obj.objectnumber
+  from collectionobjects_common obj
+  INNER JOIN misc ON misc.id = obj.id AND misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on obj.id = hier.id
+  inner join collectionobjects_ohc cohc on obj.id = cohc.id and
+	(cohc.descriptionlevel like '%''collection''' or cohc.descriptionlevel like '%''supporting collection''')
+  inner join collectionobjects_common_responsibledepartments respdept on obj.id = respdept.id and respdept.item like 'archaeology%'
+  order by obj.id asc
+),
+relct as (SELECT
+    hier.name as objectcsid,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.objectcsid = hier.name
+	inner join misc on misc.id = rel.id and misc.lifecyclestate != 'deleted'
+  where
+    rel.subjectdocumenttype = 'CollectionObject'
+    and rel.objectdocumenttype = 'CollectionObject'
+  group by
+    hier.name)
+
+select bo.objectnumber
+from baseobjs bo
+left outer join relct rc on bo.objectcsid = rc.objectcsid
+where rc.rels is null
+----
