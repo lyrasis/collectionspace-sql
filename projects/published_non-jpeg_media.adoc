@@ -1,0 +1,38 @@
+== Published media handling procedures with non-jpeg blobs
+
+[source,sql]
+----
+with nonjpgblobs as (
+  select hier.name as blobcsid, blob.*
+  from blobs_common blob
+  inner join misc ON misc.id = blob.id AND misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on blob.id = hier.id
+  where blob.mimetype != 'image/jpeg'
+),
+types as (
+	select id, item as type
+	from media_common_typelist
+	where pos = 0
+),
+pubto as (
+	select id, deurn(item) as publishto
+	from media_common_publishtolist
+),
+published as (
+	select *
+	from pubto
+	where publishto in ('NAGPRA', 'All', 'CollectionSpace Public Browser')
+),
+mh as (
+	select med.id,
+	med.identificationnumber,
+	types.type,
+	blob.mimetype
+	from media_common med
+	inner join misc ON misc.id = med.id AND misc.lifecyclestate != 'deleted'
+	inner join nonjpgblobs blob on blob.blobcsid = med.blobcsid
+	left join types on types.id = med.id
+)
+select identificationnumber, type, mimetype from mh
+where exists (select 1 from published where published.id = mh.id)
+----

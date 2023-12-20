@@ -1,0 +1,72 @@
+== Custom report for hosted client
+
+This is a custom report for a hosted client data cleanup project. Criteria:
+
+All objects where object number starts with an A. Please include the object number, OAI and OAI verbatim fields, other number and other number type fields. Please do include those A numbers where OAI and/or other number is blank as well as those that are populated.
+
+[source,sql]
+----
+with baseobjs as (
+  select obj.id, obj.objectnumber
+  from collectionobjects_common obj
+  INNER JOIN misc ON misc.id = obj.id AND misc.lifecyclestate != 'deleted'
+  where obj.objectnumber like 'A%'
+),
+children as (
+	select hier.id,
+	hier.parentid,
+	hier.pos,
+	hier.name,
+	hier.primarytype
+	from hierarchy hier
+	inner join baseobjs on baseobjs.id = hier.parentid
+	where hier.primarytype in ('oaiSiteGroup', 'otherNumber')
+),
+sites as (
+	select children.parentid as id,
+	coalesce(deurn(oai.oaicollectionplace), '%NULLVALUE%') as oaicollectionplace,
+	coalesce(oai.oailocverbatim, '%NULLVALUE%') as oailocverbatim
+	from oaisitegroup oai
+	inner join children on children.id = oai.id
+	order by children.parentid, children.pos
+),
+nums as (
+	select children.parentid as id,
+	coalesce(nums.numbertype, '%NULLVALUE%') as numbertype,
+	coalesce(nums.numbervalue, '%NULLVALUE%') as numbervalue
+	from othernumber nums
+	inner join children on children.id = nums.id
+	order by children.parentid, children.pos
+),
+oaiplaces as (
+	select sites.id, string_agg(sites.oaicollectionplace, '|') as oaicollectionplace
+	from sites
+	group by sites.id
+),
+oaiverbatims as (
+	select sites.id, string_agg(sites.oailocverbatim, '|') as oailocverbatim
+	from sites
+	group by sites.id
+),
+numvals as (
+	select nums.id, string_agg(nums.numbervalue, '|') as numbervalue
+	from nums
+	group by nums.id
+),
+numtypes as (
+	select nums.id, string_agg(nums.numbertype, '|') as numbertype
+	from nums
+	group by nums.id
+)
+
+select baseobjs.objectnumber,
+op.oaicollectionplace,
+ov.oailocverbatim,
+nv.numbervalue,
+nt.numbertype
+from baseobjs
+left outer join oaiplaces op on baseobjs.id = op.id
+left outer join oaiverbatims ov on baseobjs.id = ov.id
+left outer join numtypes nt on baseobjs.id = nt.id
+left outer join numvals nv on baseobjs.id = nv.id
+----

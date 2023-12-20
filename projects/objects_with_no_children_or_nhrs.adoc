@@ -1,11 +1,11 @@
-== Custom report for hosted client, involving combination of object and acquisition data
+== Custom report for hosted client
 
 This is a custom report for a hosted client. It produces a list of object numbers for objects meeting their criteria:
 
 * `descriptionlevel` = `collection` or `supporting collection`
 * `responsibledepartment` starts with `archaeology`
 * related to no other objects via a non-hierarchical ("affects") relationship
-* has no child objects via hierarchical relationship
+* has no non-collection or supporting collection child objects via hierarchical relationship
 
 [source,sql]
 ----
@@ -20,21 +20,44 @@ with baseobjs as (
   inner join collectionobjects_common_responsibledepartments respdept on obj.id = respdept.id and respdept.item like 'archaeology%'
   order by obj.id asc
 ),
-relct as (SELECT
-    hier.name as objectcsid,
-    count(rel.objectcsid) as rels
-  FROM
-    relations_common rel
-    inner join hierarchy hier on rel.objectcsid = hier.name
+allrels as (
+	select bo.objectnumber, rel.* from relations_common rel
+	inner join hierarchy hier on rel.objectcsid = hier.name
 	inner join misc on misc.id = rel.id and misc.lifecyclestate != 'deleted'
+	inner join baseobjs bo on bo.objectcsid = rel.objectcsid
   where
     rel.subjectdocumenttype = 'CollectionObject'
     and rel.objectdocumenttype = 'CollectionObject'
-  group by
-    hier.name)
-
-select bo.objectnumber
+),
+nhrobjs as (
+	select distinct allrels.objectcsid as relatedcsid
+	from allrels
+	where allrels.relationshiptype = 'affects'
+),
+hierrels as (
+	select objectnumber,
+	subjectcsid as childcsid,
+	objectcsid as parentcsid,
+	deurn(cohc.descriptionlevel) as childdesclevel
+	from allrels
+	inner join hierarchy hier on subjectcsid = hier.name
+    left join collectionobjects_ohc cohc on cohc.id = hier.id
+	where allrels.relationshiptype = 'hasBroader'
+)
+,
+badhierobjs as (
+	select distinct parentcsid
+	from hierrels
+	where childdesclevel is null or (childdesclevel != 'collection' and childdesclevel != 'supporting collection')
+),
+non_rel_objs as (
+select *
 from baseobjs bo
-left outer join relct rc on bo.objectcsid = rc.objectcsid
-where rc.rels is null
+where not exists (select 1 from nhrobjs where nhrobjs.relatedcsid = bo.objectcsid)
+	and
+	not exists (select 1 from badhierobjs where badhierobjs.parentcsid = bo.objectcsid)
+)
+
+select objectnumber from non_rel_objs
+order by objectnumber
 ----
