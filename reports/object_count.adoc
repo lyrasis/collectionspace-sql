@@ -1,0 +1,7 @@
+= Object count
+
+[source,sql]
+----
+select count(obj.id) from collectionobjects_common obj
+inner join misc on misc.id = obj.id and misc.lifecyclestate != 'deleted'
+----
