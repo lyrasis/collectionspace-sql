@@ -1,0 +1,25 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+
+= Public browser facet terms
+
+Queries to get the count of distinct terms used in fields that populate pubic browser facets, in objects published to public browser
+
+toc::[]
+
+== objectProductionPerson
+
+[source,sql]
+----
+with publishedobj as (
+  select obj.id from collectionobjects_common obj
+  inner join misc on misc.id = obj.id and misc.lifecyclestate != 'deleted'
+  inner join collectionobjects_common_publishtolist pub on obj.id = pub.id and
+    pub.item like '%CollectionSpace Public Browser'''
+  )
+ select distinct opg.objectproductionperson
+ from objectproductionpersongroup opg
+ inner join hierarchy hier on hier.id = opg.id
+ inner join publishedobj pub on pub.id = hier.parentid
+ ----
