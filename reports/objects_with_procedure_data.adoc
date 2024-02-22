@@ -280,6 +280,47 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
+=== Objects with JPEG and non-JPEG media
+
+The results, if exported as CSV, can be ingested as nonhierarchicalrelationship updates to ensure the first media shown in the Object record is not a non-viewable file thumbnail.
+
+[source,sql]
+----
+with rels as (
+  SELECT
+    cc.objectnumber,
+	med.identificationnumber,
+	blob.mimetype,
+    rel.subjectcsid as objcsid
+  FROM
+    relations_common rel
+    inner join hierarchy ohier on rel.subjectcsid = ohier.name
+	inner join hierarchy mhier on rel.objectcsid = mhier.name
+	inner join collectionobjects_common cc on cc.id = ohier.id
+	inner join media_common med on med.id = mhier.id
+	inner join hierarchy bhier on med.blobcsid = bhier.name
+	inner join blobs_common blob on bhier.id = blob.id
+  where
+    rel.subjectdocumenttype = 'CollectionObject'
+    and rel.objectdocumenttype = 'Media'
+),
+jpg_objs as (
+	select * from rels where mimetype = 'image/jpeg'
+),
+non_jpg_objs as (
+	select * from rels where mimetype != 'image/jpeg'
+)
+select
+  rels.objectnumber as item1_id,
+  rels.identificationnumber as item2_id,
+  'collectionobjects' as item1_type,
+  'media' as item2_type
+from rels
+inner join jpg_objs on jpg_objs.objectnumber = rels.objectnumber
+inner join non_jpg_objs on non_jpg_objs.objectnumber = rels.objectnumber
+where rels.mimetype = 'image/jpeg'
+----
+
 == Object Exit
 
 === Objects with count of related Object Exits
