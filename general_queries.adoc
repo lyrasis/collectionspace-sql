@@ -26,3 +26,27 @@ select count(sa.state_active), sa.state_active from
 INNER JOIN misc ON misc.id = rel.id) sa
 group by sa.state_active
 ----
+
+== CSID of one collectionobject with duplicate object number
+
+Outputs rectype/csid format for use with collectionspace-migration-tools' `csid delete` command.
+
+If there are THREE objects with the same object number value, this is only going to give you the CSID for one of them, so you'll still have two objects with the same object number value after running this through `csid delete`.
+
+[source,sql]
+----
+with duplicatenumbers as (
+	select cc.objectnumber from collectionobjects_common cc
+          left join misc on cc.id = misc.id
+          where misc.lifecyclestate != 'deleted'
+          group by cc.objectnumber
+          having count(cc.objectnumber)>1
+	)
+select distinct on(cc.objectnumber)
+	   hier.name as csid,
+	   'collectionobject' as rectype
+from collectionobjects_common cc
+inner join duplicatenumbers dn on dn.objectnumber = cc.objectnumber
+inner join hierarchy hier on cc.id = hier.id
+order by cc.objectnumber
+----
