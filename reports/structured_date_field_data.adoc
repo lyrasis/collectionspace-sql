@@ -4,6 +4,21 @@
 
 = Structured date field data
 
+[IMPORTANT]
+====
+Run the following before you start producing these reports. If you switch to running queries for a different client in the same session, you will be switching to a different database, and you'll need to set these again.
+
+[source,sql]
+----
+set datamig.client_timezone = 'America/New_York';
+set datamig.client_url_base = 'https://tenant.collectionspace.org/cspace/tenant';
+----
+
+`set datamig.client_timezone` allows us to indicate, for the duration of the session/connnection, the timezone to which the UTC earliest and latest scalar values should be translated. This should be set to the timezone set for the given CollectionSpace instance.
+
+For Lyrasis hosted clients, this information can be found in the collectionspace-playbook/config/config.dts.production.yml and config.dts.staging.yml files (see the `tz` key for each tenant). The value must match a name in https://www.postgresql.org/docs/12/view-pg-timezone-names.html[the pg_timezone_names table].
+====
+
 toc::[]
 
 == List of populated structured date fields
@@ -33,7 +48,7 @@ with dates as (
     HIER.ID,
     REC.acquisitionreferencenumber,
     concat(
-      'https://domain/cspace/tenant/record/all/',
+      current_setting('datamig.client_url_base'), '/record/all/',
       ph.name
     ) as rec_url
   FROM
@@ -49,8 +64,8 @@ SELECT
   D.rec_url,
   SD.DATEDISPLAYDATE,
   SD.SCALARVALUESCOMPUTED,
-  SD.DATEEARLIESTSCALARVALUE,
-  SD.DATELATESTSCALARVALUE,
+  SD.DATEEARLIESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as dateearliestscalarvalue,
+  SD.DATELATESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as datelatestscalarvalue,
   SD.DATEEARLIESTSINGLEYEAR,
   SD.DATEEARLIESTSINGLEMONTH,
   SD.DATEEARLIESTSINGLEDAY,
@@ -76,7 +91,7 @@ FROM
   STRUCTUREDDATEGROUP SD
   INNER JOIN DATES D ON SD.ID = D.ID
 WHERE
-  SD.DATEDISPLAYDATE IS NOT NULL
+  SD.DATEDISPLAYDATE IS NOT NULL;
 ----
 
 ==== acquisitionDateGroup
@@ -88,7 +103,7 @@ with dates as (
     HIER.ID,
     REC.acquisitionreferencenumber,
     concat(
-      'https://domain/cspace/tenant/record/all/',
+      current_setting('datamig.client_url_base'), '/record/all/',
       ph.name
     ) as rec_url
   FROM
@@ -104,8 +119,8 @@ SELECT
   D.rec_url,
   SD.DATEDISPLAYDATE,
   SD.SCALARVALUESCOMPUTED,
-  SD.DATEEARLIESTSCALARVALUE,
-  SD.DATELATESTSCALARVALUE,
+  SD.DATEEARLIESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as dateearliestscalarvalue,
+  SD.DATELATESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as datelatestscalarvalue,
   SD.DATEEARLIESTSINGLEYEAR,
   SD.DATEEARLIESTSINGLEMONTH,
   SD.DATEEARLIESTSINGLEDAY,
@@ -131,66 +146,10 @@ FROM
   STRUCTUREDDATEGROUP SD
   INNER JOIN DATES D ON SD.ID = D.ID
 WHERE
-  SD.DATEDISPLAYDATE IS NOT NULL
+  SD.DATEDISPLAYDATE IS NOT NULL;
 ----
 
 === Collectionobject
-==== objectProductionDateGroup
-
-This is a repeating field list. The parent is the collectionobject record
-
-[source,sql]
-----
-with dates as (
-  SELECT
-    HIER.ID,
-    REC.OBJECTNUMBER,
-    concat(
-      'https://domain/cspace/tenant/record/all/',
-      ph.name
-    ) as rec_url
-  FROM
-    HIERARCHY HIER
-    INNER JOIN COLLECTIONOBJECTS_COMMON REC ON HIER.PARENTID = REC.ID
-    inner join hierarchy ph on hier.parentid = ph.id
-  WHERE
-    HIER.PRIMARYTYPE = 'structuredDateGroup'
-    AND HIER.NAME = 'collectionobjects_common:objectProductionDateGroupList'
-)
-SELECT
-  D.OBJECTNUMBER,
-  D.rec_url,
-  SD.DATEDISPLAYDATE,
-  SD.SCALARVALUESCOMPUTED,
-  SD.DATEEARLIESTSCALARVALUE,
-  SD.DATELATESTSCALARVALUE,
-  SD.DATEEARLIESTSINGLEYEAR,
-  SD.DATEEARLIESTSINGLEMONTH,
-  SD.DATEEARLIESTSINGLEDAY,
-  DEURN(SD.DATEEARLIESTSINGLEERA) as dateearliestsingleera,
-  DEURN(SD.DATEEARLIESTSINGLECERTAINTY) as dateearliestsinglecertainty,
-  DEURN(SD.DATEEARLIESTSINGLEQUALIFIER) as dateearliestsinglequalifier,
-  SD.DATEEARLIESTSINGLEQUALIFIERVALUE,
-  DEURN(
-    SD.DATEEARLIESTSINGLEQUALIFIERUNIT
-  ) as dateearliestsinglequalifierunit,
-  SD.DATELATESTYEAR,
-  SD.DATELATESTMONTH,
-  SD.DATELATESTDAY,
-  DEURN(SD.DATELATESTERA) as datelatestera,
-  DEURN(SD.DATELATESTCERTAINTY) as datelatestcertainty,
-  DEURN(SD.DATELATESTQUALIFIER) as datelatestqualifier,
-  SD.DATELATESTQUALIFIERVALUE,
-  DEURN(SD.DATELATESTQUALIFIERUNIT) as datelatestqualifierunit,
-  SD.DATEPERIOD,
-  SD.DATEASSOCIATION,
-  SD.DATENOTE
-FROM
-  STRUCTUREDDATEGROUP SD
-  INNER JOIN DATES D ON SD.ID = D.ID
-WHERE
-  SD.DATEDISPLAYDATE IS NOT NULL
-----
 
 ==== assocDateGroup
 
@@ -203,7 +162,7 @@ with dates as(
     HIER.ID,
     cc.objectnumber,
     concat(
-      'https://domain/cspace/tenant/record/all/',
+      current_setting('datamig.client_url_base'), '/record/all/',
       objhier.name
     ) as rec_url
   FROM
@@ -220,8 +179,8 @@ SELECT
   d.rec_url,
   SD.DATEDISPLAYDATE,
   SD.SCALARVALUESCOMPUTED,
-  SD.DATEEARLIESTSCALARVALUE,
-  SD.DATELATESTSCALARVALUE,
+  SD.DATEEARLIESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as dateearliestscalarvalue,
+  SD.DATELATESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as datelatestscalarvalue,
   SD.DATEEARLIESTSINGLEYEAR,
   SD.DATEEARLIESTSINGLEMONTH,
   SD.DATEEARLIESTSINGLEDAY,
@@ -247,39 +206,38 @@ FROM
   STRUCTUREDDATEGROUP SD
   INNER JOIN DATES D ON SD.ID = D.ID
 WHERE
-  SD.DATEDISPLAYDATE IS NOT NULL
+  SD.DATEDISPLAYDATE IS NOT NULL;
 ----
 
-=== Object exit
-==== exitDateGroup
+==== objectProductionDateGroup
 
-Non-repeatable structured date field not nested in another field group
+This is a repeating field list. The parent is the collectionobject record
 
 [source,sql]
 ----
 with dates as (
   SELECT
     HIER.ID,
-    REC.exitnumber,
+    REC.OBJECTNUMBER,
     concat(
-      'https://domain/cspace/tenant/record/all/',
+      current_setting('datamig.client_url_base'), '/record/all/',
       ph.name
     ) as rec_url
   FROM
-    hierarchy hier
-    INNER JOIN objectexit_common rec ON hier.parentid = rec.id
+    HIERARCHY HIER
+    INNER JOIN COLLECTIONOBJECTS_COMMON REC ON HIER.PARENTID = REC.ID
     inner join hierarchy ph on hier.parentid = ph.id
   WHERE
-    hier.primarytype = 'structuredDateGroup'
-    AND hier.name = 'objectexit_common:exitDateGroup'
+    HIER.PRIMARYTYPE = 'structuredDateGroup'
+    AND HIER.NAME = 'collectionobjects_common:objectProductionDateGroupList'
 )
 SELECT
-  D.exitnumber,
+  D.OBJECTNUMBER,
   D.rec_url,
   SD.DATEDISPLAYDATE,
   SD.SCALARVALUESCOMPUTED,
-  SD.DATEEARLIESTSCALARVALUE,
-  SD.DATELATESTSCALARVALUE,
+  SD.DATEEARLIESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as dateearliestscalarvalue,
+  SD.DATELATESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as datelatestscalarvalue,
   SD.DATEEARLIESTSINGLEYEAR,
   SD.DATEEARLIESTSINGLEMONTH,
   SD.DATEEARLIESTSINGLEDAY,
@@ -305,7 +263,122 @@ FROM
   STRUCTUREDDATEGROUP SD
   INNER JOIN DATES D ON SD.ID = D.ID
 WHERE
-  SD.DATEDISPLAYDATE IS NOT NULL
+  SD.DATEDISPLAYDATE IS NOT NULL;
+----
+
+==== ownershipDateGroup
+
+This is a repeating field list. The parent is the collectionobject record.
+
+[source,sql]
+----
+with dates as (
+  SELECT
+    HIER.ID,
+    REC.OBJECTNUMBER,
+    concat(
+      current_setting('datamig.client_url_base'), '/record/all/',
+      ph.name
+    ) as rec_url
+  FROM
+    HIERARCHY HIER
+    INNER JOIN COLLECTIONOBJECTS_COMMON REC ON HIER.PARENTID = REC.ID
+    inner join hierarchy ph on hier.parentid = ph.id
+  WHERE
+    HIER.PRIMARYTYPE = 'structuredDateGroup'
+    AND HIER.NAME = 'collectionobjects_common:ownershipDateGroupList'
+)
+SELECT
+  D.OBJECTNUMBER,
+  D.rec_url,
+  SD.DATEDISPLAYDATE,
+  SD.SCALARVALUESCOMPUTED,
+  SD.DATEEARLIESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as dateearliestscalarvalue,
+  SD.DATELATESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as datelatestscalarvalue,
+  SD.DATEEARLIESTSINGLEYEAR,
+  SD.DATEEARLIESTSINGLEMONTH,
+  SD.DATEEARLIESTSINGLEDAY,
+  DEURN(SD.DATEEARLIESTSINGLEERA) as dateearliestsingleera,
+  DEURN(SD.DATEEARLIESTSINGLECERTAINTY) as dateearliestsinglecertainty,
+  DEURN(SD.DATEEARLIESTSINGLEQUALIFIER) as dateearliestsinglequalifier,
+  SD.DATEEARLIESTSINGLEQUALIFIERVALUE,
+  DEURN(
+    SD.DATEEARLIESTSINGLEQUALIFIERUNIT
+  ) as dateearliestsinglequalifierunit,
+  SD.DATELATESTYEAR,
+  SD.DATELATESTMONTH,
+  SD.DATELATESTDAY,
+  DEURN(SD.DATELATESTERA) as datelatestera,
+  DEURN(SD.DATELATESTCERTAINTY) as datelatestcertainty,
+  DEURN(SD.DATELATESTQUALIFIER) as datelatestqualifier,
+  SD.DATELATESTQUALIFIERVALUE,
+  DEURN(SD.DATELATESTQUALIFIERUNIT) as datelatestqualifierunit,
+  SD.DATEPERIOD,
+  SD.DATEASSOCIATION,
+  SD.DATENOTE
+FROM
+  STRUCTUREDDATEGROUP SD
+  INNER JOIN DATES D ON SD.ID = D.ID
+WHERE
+  SD.DATEDISPLAYDATE is not null;
+----
+
+=== Object exit
+==== exitDateGroup
+
+Non-repeatable structured date field not nested in another field group
+
+[source,sql]
+----
+with dates as (
+  SELECT
+    HIER.ID,
+    REC.exitnumber,
+    concat(
+      current_setting('datamig.client_url_base'), '/record/all/',
+      ph.name
+    ) as rec_url
+  FROM
+    hierarchy hier
+    INNER JOIN objectexit_common rec ON hier.parentid = rec.id
+    inner join hierarchy ph on hier.parentid = ph.id
+  WHERE
+    hier.primarytype = 'structuredDateGroup'
+    AND hier.name = 'objectexit_common:exitDateGroup'
+)
+SELECT
+  D.exitnumber,
+  D.rec_url,
+  SD.DATEDISPLAYDATE,
+  SD.SCALARVALUESCOMPUTED,
+  SD.DATEEARLIESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as dateearliestscalarvalue,
+  SD.DATELATESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as datelatestscalarvalue,
+  SD.DATEEARLIESTSINGLEYEAR,
+  SD.DATEEARLIESTSINGLEMONTH,
+  SD.DATEEARLIESTSINGLEDAY,
+  DEURN(SD.DATEEARLIESTSINGLEERA) as dateearliestsingleera,
+  DEURN(SD.DATEEARLIESTSINGLECERTAINTY) as dateearliestsinglecertainty,
+  DEURN(SD.DATEEARLIESTSINGLEQUALIFIER) as dateearliestsinglequalifier,
+  SD.DATEEARLIESTSINGLEQUALIFIERVALUE,
+  DEURN(
+    SD.DATEEARLIESTSINGLEQUALIFIERUNIT
+  ) as dateearliestsinglequalifierunit,
+  SD.DATELATESTYEAR,
+  SD.DATELATESTMONTH,
+  SD.DATELATESTDAY,
+  DEURN(SD.DATELATESTERA) as datelatestera,
+  DEURN(SD.DATELATESTCERTAINTY) as datelatestcertainty,
+  DEURN(SD.DATELATESTQUALIFIER) as datelatestqualifier,
+  SD.DATELATESTQUALIFIERVALUE,
+  DEURN(SD.DATELATESTQUALIFIERUNIT) as datelatestqualifierunit,
+  SD.DATEPERIOD,
+  SD.DATEASSOCIATION,
+  SD.DATENOTE
+FROM
+  STRUCTUREDDATEGROUP SD
+  INNER JOIN DATES D ON SD.ID = D.ID
+WHERE
+  SD.DATEDISPLAYDATE IS NOT NULL;
 ----
 
 === Persons
@@ -319,7 +392,7 @@ WITH DATES AS (
     HIER.ID,
     DEURN(PC.REFNAME) AS TERM,
     CONCAT(
-      'https://domain/cspace/tenant/record/all/',
+      current_setting('datamig.client_url_base'), '/record/all/',
       PH.NAME
     ) AS RECURL
   FROM
@@ -335,8 +408,8 @@ SELECT
   D.RECURL,
   SD.DATEDISPLAYDATE,
   SD.SCALARVALUESCOMPUTED,
-  SD.DATEEARLIESTSCALARVALUE,
-  SD.DATELATESTSCALARVALUE,
+  SD.DATEEARLIESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as dateearliestscalarvalue,
+  SD.DATELATESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as datelatestscalarvalue,
   SD.DATEEARLIESTSINGLEYEAR,
   SD.DATEEARLIESTSINGLEMONTH,
   SD.DATEEARLIESTSINGLEDAY,
@@ -362,7 +435,7 @@ FROM
   STRUCTUREDDATEGROUP SD
   INNER JOIN DATES D ON SD.ID = D.ID
 WHERE
-  SD.DATEDISPLAYDATE IS NOT NULL
+  SD.DATEDISPLAYDATE IS NOT NULL;
 ----
 
 ==== deathDateGroup
@@ -374,7 +447,7 @@ WITH DATES AS (
     HIER.ID,
     DEURN(PC.REFNAME) AS TERM,
     CONCAT(
-      'https://domain/cspace/tenant/record/all/',
+      current_setting('datamig.client_url_base'), '/record/all/',
       PH.NAME
     ) AS RECURL
   FROM
@@ -390,8 +463,8 @@ SELECT
   D.RECURL,
   SD.DATEDISPLAYDATE,
   SD.SCALARVALUESCOMPUTED,
-  SD.DATEEARLIESTSCALARVALUE,
-  SD.DATELATESTSCALARVALUE,
+  SD.DATEEARLIESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as dateearliestscalarvalue,
+  SD.DATELATESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as datelatestscalarvalue,
   SD.DATEEARLIESTSINGLEYEAR,
   SD.DATEEARLIESTSINGLEMONTH,
   SD.DATEEARLIESTSINGLEDAY,
@@ -417,7 +490,7 @@ FROM
   STRUCTUREDDATEGROUP SD
   INNER JOIN DATES D ON SD.ID = D.ID
 WHERE
-  SD.DATEDISPLAYDATE IS NOT NULL
+  SD.DATEDISPLAYDATE IS NOT NULL;
 ----
 
 === Works
@@ -430,7 +503,7 @@ WITH DATES AS (
     HIER.ID,
     DEURN(WC.REFNAME) AS TERM,
     CONCAT(
-      'https://domain/cspace/tenant/record/all/',
+      current_setting('datamig.client_url_base'), '/record/all/',
       PH.NAME
     ) AS RECURL
   FROM
@@ -446,8 +519,8 @@ SELECT
   D.RECURL,
   SD.DATEDISPLAYDATE,
   SD.SCALARVALUESCOMPUTED,
-  SD.DATEEARLIESTSCALARVALUE,
-  SD.DATELATESTSCALARVALUE,
+  SD.DATEEARLIESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as dateearliestscalarvalue,
+  SD.DATELATESTSCALARVALUE at time zone current_setting('datamig.client_timezone') as datelatestscalarvalue,
   SD.DATEEARLIESTSINGLEYEAR,
   SD.DATEEARLIESTSINGLEMONTH,
   SD.DATEEARLIESTSINGLEDAY,
@@ -473,5 +546,5 @@ FROM
   STRUCTUREDDATEGROUP SD
   INNER JOIN DATES D ON SD.ID = D.ID
 WHERE
-  SD.DATEDISPLAYDATE IS NOT NULL
+  SD.DATEDISPLAYDATE IS NOT NULL;
 ----
