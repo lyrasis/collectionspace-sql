@@ -13,6 +13,8 @@ Run the following before you start producing these reports. If you switch to run
 set datamig.client_url_base = 'https://tenant.collectionspace.org/cspace/tenant';
 ----
 
+====
+
 toc::[]
 
 == Acquisitions with count of related objects
