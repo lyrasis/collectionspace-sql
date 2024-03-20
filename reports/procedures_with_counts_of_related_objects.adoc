@@ -4,6 +4,15 @@
 
 = Procedures with counts of related objects
 
+[IMPORTANT]
+====
+Run the following before you start producing these reports. If you switch to running queries for a different client in the same session, you will be switching to a different database, and you'll need to set these again.
+
+[source,sql]
+----
+set datamig.client_url_base = 'https://tenant.collectionspace.org/cspace/tenant';
+----
+
 toc::[]
 
 == Acquisitions with count of related objects
@@ -26,7 +35,7 @@ with relct as (
 select
   rec.acquisitionreferencenumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -57,7 +66,7 @@ with relct as (
 select
   rec.conditioncheckrefnumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -88,7 +97,7 @@ with relct as (
 select
   rec.conservationnumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -119,7 +128,7 @@ with relct as (
 select
   rec.exhibitionnumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -150,7 +159,7 @@ with relct as (
 select
   rec.title,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -181,7 +190,7 @@ with relct as (
 select
   rec.loaninnumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -212,7 +221,7 @@ with relct as (
 select
   rec.loanoutnumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -243,7 +252,7 @@ with relct as (
 select
   rec.identificationnumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -274,7 +283,7 @@ with relct as (
 select
   rec.movementreferencenumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -305,7 +314,7 @@ with relct as (
 select
   rec.exitnumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
@@ -336,7 +345,7 @@ with relct as (
 select
   rec.valuationcontrolrefnumber,
   concat(
-    'https://domain/cspace/tenant/record/all/',
+    current_setting('datamig.client_url_base'), '/record/all/',
     hier.name
   ) as rec_url,
   rc.rels
