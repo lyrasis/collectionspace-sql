@@ -16,6 +16,7 @@ set datamig.client_url_base = 'https://tenant.collectionspace.org/cspace/tenant'
 toc::[]
 
 == Acquisitions
+
 === Objects with count of related Acquisitions
 
 [source,sql]
@@ -48,6 +49,7 @@ from
 ----
 
 == Condition Check
+
 === Objects with count of related Condition Checks
 
 [source,sql]
