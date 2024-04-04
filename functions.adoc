@@ -6,6 +6,26 @@
 
 toc::[]
 
+== auth_refname_base
+
+Given an authority refname URN, returns the URN with the display name removed from the end. This is useful for matching variant term usages to the term record.
+
+[source,sql]
+----
+create or replace function auth_refname_base(refname varchar)
+returns varchar
+language plpgsql
+as
+$Q$
+declare
+  base varchar;
+begin
+  base := substring(refname from '^urn:.*item:name\([^)]+\)');
+  return base;
+end;
+$Q$;
+----
+
 == csid_from_group_id
 
 Takes the id from a row in a field group table (such as `annotationgroup`), and returns the CSID of the record the field group is part of.
