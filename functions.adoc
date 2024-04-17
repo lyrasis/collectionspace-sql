@@ -6,6 +6,26 @@
 
 toc::[]
 
+== auth_name
+
+Given an authority refname URN, returns the authority name.
+
+[source,sql]
+----
+create or replace function auth_name(refname varchar)
+returns varchar
+language plpgsql
+as
+$Q$
+declare
+  authname varchar;
+begin
+  authname := substring(refname from '^urn:.*:name\(([^)]+)\):item:name');
+  return authname;
+end;
+$Q$;
+----
+
 == auth_refname_base
 
 Given an authority refname URN, returns the URN with the display name removed from the end. This is useful for matching variant term usages to the term record.
