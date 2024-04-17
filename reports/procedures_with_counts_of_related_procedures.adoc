@@ -366,7 +366,8 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
-=== Valuation Control with count of related Acquisition
+== Valuation Control
+=== Valuation Control with count of related Acquisitions
 
 [source,sql]
 ----
@@ -380,6 +381,68 @@ with relct as (
   where
     rel.subjectdocumenttype = 'Valuationcontrol'
     and rel.objectdocumenttype = 'Acquisition'
+  group by
+    hier.name
+)
+select
+  rec.valuationcontrolrefnumber,
+  concat(
+    current_setting('datamig.client_url_base'), '/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  valuationcontrols_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
+=== Valuation Control with count of related Loans In
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'Valuationcontrol'
+    and rel.objectdocumenttype = 'Loanin'
+  group by
+    hier.name
+)
+select
+  rec.valuationcontrolrefnumber,
+  concat(
+    current_setting('datamig.client_url_base'), '/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  valuationcontrols_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
+=== Valuation Control with count of related Loans Out
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'Valuationcontrol'
+    and rel.objectdocumenttype = 'Loanout'
   group by
     hier.name
 )
