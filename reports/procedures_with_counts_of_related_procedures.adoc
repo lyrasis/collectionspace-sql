@@ -50,6 +50,72 @@ from
   left outer join relct rc on hier.name = rc.name
 ----
 
+== Condition checks
+
+=== Condition checks with count of related Conservation Treatments
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'Conditioncheck'
+    and rel.objectdocumenttype = 'Conservation'
+  group by
+    hier.name
+)
+select
+  rec.conditioncheckrefnumber,
+  concat(
+    current_setting('datamig.client_url_base'), '/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  conditionchecks_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
+== Conservation treatments
+
+=== Conservation treatments with count of related Condition checks
+
+[source,sql]
+----
+with relct as (
+  SELECT
+    hier.name,
+    count(rel.objectcsid) as rels
+  FROM
+    relations_common rel
+    inner join hierarchy hier on rel.subjectcsid = hier.name
+  where
+    rel.subjectdocumenttype = 'Conservation'
+    and rel.objectdocumenttype = 'Conditioncheck'
+  group by
+    hier.name
+)
+select
+  rec.conservationnumber,
+  concat(
+    current_setting('datamig.client_url_base'), '/record/all/',
+    hier.name
+  ) as rec_url,
+  rc.rels
+from
+  conservation_common rec
+  inner join misc on misc.id = rec.id and misc.lifecyclestate != 'deleted'
+  inner join hierarchy hier on rec.id = hier.id
+  left outer join relct rc on hier.name = rc.name
+----
+
 == Exhibitions
 
 === Exhibitions with count of related Loans In
