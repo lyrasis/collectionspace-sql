@@ -79,6 +79,8 @@ and subjectdocumenttype = 'conceptitem'
 and subjectrefname like '%:name(concept):%'
 ----
 
+See https://github.com/lyrasis/collectionspace-sql/blob/main/reports/objects_in_location_and_its_children.adoc[reports/objects_in_location_and_its_children] for an example of how to pull a term and all its descendants.
+
 == Data on media handling images
 
 In addition to the normal media and blob (subrecord) tables, the `content` table contains data on the original and derivative files.
@@ -145,4 +147,58 @@ WITH dbid AS (
 )
 
 select * from allrows
+----
+
+== Basic identifying info for objects
+The following is a query fragment to append basic object id fields to `collectionobjects_common` rows identified by some logic. It assumes you have a CTE named `objs` which has (at least) columns:
+
+* id (The database id of the collectionobjects_common row for each object)
+* objectnumber
+
+[source,sql]
+----
+title as (
+select
+obj.id,
+tg.title
+from objs obj
+left outer join hierarchy h on h.parentid = obj.id and h.primarytype = 'titleGroup' and h.pos = 0
+left outer join titlegroup tg on h.id = tg.id
+where tg.title is not null
+),
+objname as (
+select
+obj.id,
+concat_ws(' - ', ong.objectnametype, deurn(ong.objectnamecontrolled), ong.objectname) as objectname
+from objs obj
+left outer join hierarchy h on h.parentid = obj.id and h.primarytype = 'objectNameGroup' and h.pos = 0
+left outer join objectnamegroup ong on h.id = ong.id
+),
+prod as (
+select
+obj.id,
+sd.datedisplaydate as productiondate,
+deurn(opp.objectproductionperson) as productionperson
+from objs obj
+left outer join hierarchy hd on hd.parentid = obj.id and hd.pos = 0
+	and hd.name = 'collectionobjects_common:objectProductionDateGroupList'
+left outer join structureddategroup sd on sd.id = hd.id
+left outer join hierarchy hp on hp.parentid = obj.id and hp.pos = 0
+	and hp.primarytype = 'objectProductionPersonGroup'
+left outer join objectproductionpersongroup opp on hp.id = opp.id
+),
+objdata as (
+select
+obj.objectnumber,
+name.objectname,
+ti.title,
+prod.productiondate,
+prod.productionperson,
+obj.computedcurrentlocation
+from objs obj
+left outer join title ti on obj.id = ti.id
+left outer join objname name on obj.id = name.id
+left outer join prod on obj.id = prod.id
+)
+select * from objdata;
 ----
