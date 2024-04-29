@@ -1,0 +1,41 @@
+= Objects in a location and its children
+
+Base query to return the objects and their database IDs. For most uses, clients will want additional object data fields included in the output.
+
+[source,sql]
+----
+-- Returns term CSIDs of given top level term and all its hierarchical children
+with recursive authchildren as (
+-- Dummy anchor table - manually enter CSID of top level term (from end of record URL in UI app)
+select cast('73d5a7e1-d0fd-4f33-8756' as varchar) as childcsid
+
+union
+
+select rel.subjectcsid as childcsid
+from relations_common rel
+inner join authchildren ac on ac.childcsid = rel.objectcsid
+inner join misc on rel.id = misc.id and misc.lifecyclestate != 'deleted'
+where rel.relationshiptype = 'hasBroader'
+),
+-- Adds term display name and refname values to all terms retrieved by authchildren
+labeled as (
+select ac.childcsid as termcsid,
+ltg.termdisplayname,
+lc.refname
+from authchildren ac
+inner join hierarchy h on ac.childcsid = h.name
+inner join locations_common lc on h.id = lc.id
+inner join hierarchy hp on lc.id = hp.parentid
+inner join loctermgroup ltg on hp.id = ltg.id and hp.pos = 0
+),
+-- Returns all objects with one of the labeled refname values in computedCurrentLocation
+objinloc as (
+select cc.id,
+cc.objectnumber,
+labeled.termdisplayname as computedCurrentLocation
+from collectionobjects_common cc
+inner join labeled on labeled.refname = cc.computedcurrentlocation
+inner join misc on cc.id = misc.id and misc.lifecyclestate != 'deleted'
+)
+select * from objinloc;
+----
