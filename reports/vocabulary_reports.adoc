@@ -1,0 +1,32 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+
+= Vocabulary (dynamic term list) data reports
+
+toc::[]
+
+== Find duplicate vocabulary terms
+
+Duplicate vocabulary terms = the same display name value in the same vocabulary.
+
+This is necessary since, prior to 8.1, it was possible to add the same term to a vocabulary, and this sometimes happened by accident during upgrades or when a vocabulary previously only in an inheriting profile was added to an inherited profile. E.g. custom profile inheriting from anthro defined descriptionLevels vocabulary; later a descriptionLevels vocabulary is added to anthro and inherited on top of the existing custom vocabulary.
+
+[source,sql]
+----
+with dupeterms as (
+select vic.displayname,
+	vic.inauthority,
+	count(vic.id) occs
+from vocabularyitems_common vic
+inner join misc on misc.id = vic.id and misc.lifecyclestate != 'deleted'
+group by vic.displayname,
+  vic.inauthority
+having count(vic.id) > 1
+)
+select vc.displayname as vocab,
+	dt.displayname as vocab_term
+from dupeterms dt
+inner join hierarchy h on h.name = dt.inauthority
+inner join vocabularies_common vc on vc.id = h.id
+----
