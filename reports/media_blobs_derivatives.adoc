@@ -2,7 +2,7 @@
 :toc-placement!:
 :toclevels: 4
 
-= Media, blobs, and derivatives
+= Media, blob, and derivative-related queries
 
 toc::[]
 
@@ -57,33 +57,90 @@ inner join cts on cts.id = med.id
 inner join hierarchy hier on hier.id = med.id
 ----
 
-== Orphaned blobs
+== Maintenance checks
 
-Returns CSIDs of blobs not associated with a media handling procedure
+=== Media handling procedures without files
+
+Returns media handling procedures with no attached blob subrecord.
 
 [source,sql]
 ----
-with oblobs as (
-	(
-  select bc.id from blobs_common bc
-  inner join misc on misc.id = bc.id and misc.lifecyclestate != 'deleted'
-	)
-	EXCEPT
-  (
-    select bc.id
-    from media_common med
-    inner join hierarchy hier on med.id = hier.id
-    inner join hierarchy bh on med.blobcsid = bh.name
-    inner join blobs_common bc on bh.id = bc.id
-    inner join misc on misc.id = med.id and misc.lifecyclestate != 'deleted'
-    inner join misc mb on mb.id = bc.id and misc.lifecyclestate != 'deleted'
-  )
-	)
-select hier.name AS csid, 'blob' as rectype from hierarchy hier
-inner join oblobs on oblobs.id = hier.id
+select mc.identificationnumber,
+	mc.title,
+	mc.blobcsid
+from media_common mc
+inner join misc on misc.id = mc.id and misc.lifecyclestate != 'deleted'
+where mc.blobcsid is null
 ----
 
-DB spelunking notes:
+=== Missing blobs
+
+Blob recorded in media handling record is not found in database, or is found but is in a deleted state.
+
+[source,sql]
+----
+select distinct on (mc.id)
+	mc.identificationnumber,
+	mc.title,
+	mc.blobcsid,
+	bc.name as filename,
+	bc.mimetype,
+	bc.length as filebytes,
+	bc.digest as s3_key,
+	m2.lifecyclestate as blobstate
+from media_common mc
+inner join misc on misc.id = mc.id and misc.lifecyclestate != 'deleted'
+left outer join hierarchy h on mc.blobcsid = h.name and primarytype = 'Blob'
+left outer join blobs_common bc on bc.id = h.id
+left outer join misc m2 on m2.id = bc.id
+where mc.blobcsid is not null
+  and (
+	bc.id is null or m2.lifecyclestate = 'deleted'
+  )
+----
+
+=== Blob missing digest
+
+Appears to indicate blobs whose files are missing from the underlying storage layer, where the file names are the digest values.
+
+[source,sql]
+----
+select distinct on (mc.id)
+	mc.identificationnumber,
+	mc.title,
+	mc.blobcsid,
+	bc.name as filename,
+	bc.mimetype,
+	bc.length as filebytes,
+	bc.digest as s3_key,
+	m2.lifecyclestate as blobstate
+from media_common mc
+inner join misc on misc.id = mc.id and misc.lifecyclestate != 'deleted'
+left outer join hierarchy h on mc.blobcsid = h.name and primarytype = 'Blob'
+left outer join blobs_common bc on bc.id = h.id
+left outer join misc m2 on m2.id = bc.id
+where mc.blobcsid is not null and bc.digest is null
+----
+
+=== Orphaned blobs
+
+Returns CSIDs of blobs not associated with a media handling procedure. Active blobs associated with soft-deleted media handling records are not considered orphaned, since the expectation when un-soft-deleting a media handling record may be that the blob is still present/attached.
+
+[source,sql]
+----
+select distinct on (bh.name) bh.name as csid,
+	'blob' as rectype
+from blobs_common bc
+inner join misc on misc.id = bc.id and misc.lifecyclestate != 'deleted'
+inner join hierarchy bh on bc.id = bh.id
+left outer join media_common mc on mc.blobcsid = bh.name
+left outer join misc mm on mc.id = mm.id
+where mc.identificationnumber is null
+----
+
+= Some DB exploration notes
+
+Here you can see some of how all the things in the DB related to media are connected via IDs and the hierarchy table.
 
 ....
 hierarchy
