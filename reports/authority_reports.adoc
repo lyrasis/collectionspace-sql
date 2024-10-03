@@ -86,3 +86,35 @@ union
 select * from varnames
 order by rec_url, nametype
 ----
+
+== Persons with email address value(s)
+
+[source, sql]
+----
+with alldata as (
+	select per.id as personid, pt.termdisplayname, pt.title, pt.forename, pt.initials, pt.surname, pt.nameadditions,
+	eg.email || coalesce(' (type: ' || eg.emailtype || ')', '') as email,
+	ehier.pos as emailorder
+from persons_common per
+inner join misc on per.id = misc.id and misc.lifecyclestate != 'deleted'
+inner join hierarchy phier on per.id = phier.id
+inner join contacts_common con on con.initem = phier.name
+inner join hierarchy ehier on con.id = ehier.parentid and ehier.primarytype = 'emailGroup'
+inner join emailgroup eg on eg.id = ehier.id
+inner join hierarchy pthier on per.id = pthier.parentid and pthier.primarytype = 'personTermGroup' and pthier.pos = 0
+inner join persontermgroup pt on pthier.id = pt.id
+),
+names as (
+select distinct personid, termdisplayname, title, forename, initials, surname, nameadditions
+	from alldata
+),
+emails as (
+select personid, string_agg(email, '|' order by emailorder) as email
+from alldata
+	group by personid
+)
+
+select termdisplayname, title, forename, initials, surname, nameadditions, email
+from names
+inner join emails on emails.personid = names.personid
+----
