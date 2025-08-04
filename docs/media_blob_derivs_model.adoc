@@ -1,0 +1,54 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+= Modeling of media handling, blobs, and derivative files in the database
+
+WARNING: The diagrams in this document are not full physical models of the database, but highlight the most important fields and relationships for working with these records.
+
+== Media handling and blobs
+
+Blobs are subrecords associated with media handling procedural records. The blob subrecord and functionality associated with it handles:
+
+- file storage
+- derivative creation (thumbnails, etc.) for certain image formats
+
+A media handling procedure may have 0 or 1 blob subrecord associated with it.
+
+A given blob subrecord may be associated with 0 to n media handling procedures. If a blob is associated with 0 media handling procedures, it is considered orphaned.
+
+[source,mermaid]
+----
+---
+title: Relationship between Media Handling and Blob
+---
+erDiagram
+  MEDIA_COMMON }o..|| HIERARCHY : ""
+  HIERARCHY ||..|| BLOBS_COMMON : ""
+  MEDIA_COMMON {
+    csid blobcsid FK "hierarchy.name"
+  }
+  HIERARCHY {
+  uuid id PK
+  csid name FK "media_common.blobcsid"
+  string primarytype "Blob"
+  }
+  BLOBS_COMMON {
+    uuid id PK
+    int length "file size in bytes"
+    string digest "is S3 object key of stored orig file"
+    uuid repositoryid "id of file if stored in filesystem (?)"
+    string mimetype "of ingested file"
+    string name "filename of ingested file"
+  }
+----
+
+== Blobs and derivatives

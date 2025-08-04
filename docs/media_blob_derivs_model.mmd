@@ -1,0 +1,285 @@
+graph TD;
+    prep__obj_geography["`**prep__obj_geography**
+    Apply cleaning/prep
+    Keep only rows w/content fields
+    Add :orig_combined`"]
+
+    prep__con_geography["`**prep__con_geography**
+    Extract content fields
+    Keep only rows w/content fields
+    Add :orig_combined`"]
+
+    obj_geography__for_authority["`**obj_geography__for_authority**
+    Keep only rows for controlled types
+    Delete non-content fields`"]
+
+    obj_geography__authority_merge["`**obj_geography__authority_merge**
+    Merge in cleaned place values and notes
+    Keep only rows with place values`"]
+
+    con_geography__for_authority["`**con_geography__for_authority**
+    Extract content fields
+    Add :orig_combined`"]
+
+    con_geography__authority_merge["`**con_geography__authority_merge**
+    Merge in cleaned place values and notes
+    Keep only rows with place values`"]
+
+    reference_master__places["`**reference_master__places**
+    Extract :placepublished
+    Add :orig_combined`"]
+
+    reference_master__place_authority_merge["`**reference_master__place_authority_merge**
+    Merge in cleaned place values and notes`"]
+
+    places__compile["`**places__compile**
+    EnsureConsistentFields`"]
+
+    places__unique["`**places__unique**
+    Deduplicate on :orig_combined
+    Add :occurrences from count of :orig_combined in src`"]
+
+    places__notes_extracted["`**places__notes_extracted**
+    Extract derived_note_fields to separate fields`"]
+
+    places__orig_normalized["`**places__orig_normalized**
+    Removed note-extracted patterns from place field content
+    Adds :normalized (y/blank)
+    Finalizes data if Tms.final_data_cleaner
+    Adds :norm_combined`"]
+
+    places__norm_unique["`**places__norm_unique**
+    Delete derived_note_fields
+    Delete :occurrences
+    Delete :normalized
+    Delete :orig_combined
+    Deduplicate on :norm_combined
+    Add :occurrences with summed merged values
+    Add :norm_fingerprint`"]
+
+    places__norm_unique_cleaned["`**places__norm_unique_cleaned**
+    Adds worksheet_added_fields
+    If cleanup done, merges from places__corrections
+    Adds :clean_combined`"]
+
+    places__cleaned_unique["`**places__cleaned_unique**
+    Deduplicate on :clean_combined
+    Delete norm_combined
+    Delete norm_fingerprint
+    Delete occurrences
+    Merge collated :norm_fingerprints
+    Merge collated :norm_combineds
+    Merge summed :occurrences`"]
+
+    places__cleaned_notes["`**places__cleaned_notes**
+    Keep only rows where note fields are populated
+    Keep only note and :norm_combineds fields
+    Explode :norm_combineds
+    :norm_combineds->:norm_combined`"]
+
+    places__worksheet["`**places__worksheet**
+    Add :clean_fingerprint
+    If cleanup done, add :to_review
+    Set :to_review y if no :norm_combineds in lkup`"]
+
+    places__returned[/"`**places__returned_job_n**
+    One CSV per cleanup worksheet returned`"\]
+
+    places__returned_compile["`**places__returned_compile**
+    Delete :to_review
+    Flag changes via :clean_fingerprint`"]
+
+    places__corrections["`**places__corrections**
+    Delete :occurrences
+    Delete :norm_combineds
+    Delete :clean_combined
+    Delete :clean_fingerprint
+    Keep only rows with corrections
+    Explode on :norm_fingerprints
+    :norm_fingerprints->:norm_fingerprint
+    Deduplicate on full row match`"]
+
+    places__cleaned_exploded["`**places__cleaned_exploded**
+    One row per source_fields column
+    (minus worksheet_added_fields columns)
+    Keep :clean_combined for each row
+    Keep :norm_combineds for each row
+    Keep :occurrences for each row`"]
+
+    places__cleaned_exploded_report_prep["`**places__cleaned_exploded_report_prep**
+    Run script to produce report data`"]
+
+    places__cleaned_exploded_report["`**places__cleaned_exploded_report**
+    Finalize report format and column order`"]
+
+    places__build_hierarchical["`**places__build_hierarchical**
+    Build hierarchical terms from initial cleanup
+    Assign :norm value based on most frequently used form`"]
+
+    places__build_nonhier["`**places__build_nonhier**
+    Extract nonhierarchical terms from initial cleanup
+    Qualify term values with field name if configured to do so
+    Assign :norm value based on most frequently used form`"]
+
+    places__uniq_hierarchical["`**places__uniq_hierarchical**
+    Deduplicate on :norm
+    Delete all other fields
+    Merge collated :norm_combineds
+    Merge norm variant forms (and count of them)
+    Add :termtype`"]
+
+    places__uniq_nonhier["`**places__uniq_nonhier**
+    Deduplicate on :norm
+    Delete all other fields
+    Merge collated :norm_combineds
+    Merge norm variant forms (and count of them)
+    Add :termtype`"]
+
+    places__init_cleaned_lookup["`**places__init_cleaned_lookup**
+    Explode rows on :norm_combineds
+    :norm_combineds renamed to :norm_combined`"]
+
+    places__init_cleaned_terms["`**places__init_cleaned_terms**
+    Deduplicate on :norm
+    Delete :norm_combined`"]
+
+    places__final_cleanup_worksheet["`**places__final_cleanup_worksheet**
+    Deduplicate on :norm
+    Merge in :orig
+    Add worksheet fields, fp
+    Rename :norm to :place`"]
+
+    places__final_returned[/"`**places__final_returned_jobs_n**
+    One CSV per cleanup worksheet returned`"\]
+
+    places__final_returned_compile["`**places__final_returned_compile**
+    Delete :to_review
+    Flag changes via :fingerprint
+    Delete :fp_add_variant
+    Rename :fp_place to :norm
+    *NOTE: same norm as in places__init_cleaned_terms*`"]
+
+    places__final_corrections["`**places__final_corrections**
+    Delete :normalized_variants
+    Delete :orig, :orig_ct
+    Delete :clustered
+    Keep only rows with corrections`"]
+
+    places__final_cleanup_cleaned["`**places__final_cleanup_cleaned**
+    Merges in corrected values`"]
+
+    places__final_cleaned_lookup["`**places__final_cleaned_lookup**
+    Merges final clean value for each :norm_combined
+    Merges :orig_combined values for each :norm_combined
+    Merged in initial cleanup worksheet notes
+    Keeps only :place, :orig_combined, notes
+    Keep only one copy of note per row for :orig_combined
+    Explodes :orig_combined
+    Merges in original auto-extracted notes`"]
+
+    prep__obj_geography-- if used --> obj_geography__for_authority;
+    prep__con_geography-- if used --> con_geography__for_authority;
+    obj_geography__for_authority-- if used & controlled_types -->places__compile;
+    con_geography__for_authority-- if used & controlled_types -->places__compile;
+    reference_master__places-- if used -->places__compile;
+    places__compile-->places__unique;
+    places__compile-- lkup on :orig_combined -->places__unique;
+    places__unique-->places__notes_extracted;
+    places__notes_extracted-->places__orig_normalized;
+    places__orig_normalized-->places__norm_unique;
+    places__orig_normalized-- lkup on :norm_combined -->places__norm_unique;
+    places__norm_unique-->places__norm_unique_cleaned;
+    places__corrections-.
+    "`if cleanup done
+    lkup on :norm_fingerprint`" .->
+    places__norm_unique_cleaned;
+    places__norm_unique_cleaned-->places__cleaned_unique;
+    places__norm_unique_cleaned--
+    "`lkup on
+    :clean_combined`" -->
+    places__cleaned_unique;
+    places__cleaned_unique-->places__worksheet;
+    places__returned_compile-.
+    "`if cleanup done
+    lkup on :clean_combined`" .->
+    places__worksheet;
+    places__worksheet-.
+    "`returned
+    if cleanup done`" .->
+    places__returned;
+    places__returned-. if cleanup done .->places__returned_compile;
+    places__returned_compile-. if cleanup done .->places__corrections;
+    places__cleaned_unique-->places__cleaned_exploded;
+    places__cleaned_exploded-->places__cleaned_exploded_report_prep;
+    places__cleaned_exploded_report_prep-->places__cleaned_exploded_report;
+    places__cleaned_exploded_report-. supports completion of .->places__worksheet;
+    places__cleaned_unique-->places__build_hierarchical;
+    places__cleaned_unique-->places__build_nonhier;
+    places__build_hierarchical-->places__uniq_hierarchical;
+    places__build_hierarchical-- lkup on :norm -->places__uniq_hierarchical;
+    places__build_nonhier-->places__uniq_nonhier;
+    places__build_nonhier-- lkup on :norm -->places__uniq_nonhier;
+    places__uniq_hierarchical-->places__init_cleaned_lookup;
+    places__uniq_nonhier-->places__init_cleaned_lookup;
+    places__init_cleaned_lookup-->places__init_cleaned_terms;
+    places__init_cleaned_terms-->places__final_cleanup_worksheet;
+    places__init_cleaned_terms-- lkup on :norm -->places__final_cleanup_worksheet;
+    places__final_cleanup_worksheet-.
+    "`returned
+    if final cleanup done`" .->
+    places__final_returned;
+    places__final_returned-. if final cleanup done .->places__final_returned_compile;
+    places__final_returned_compile-. if final cleanup done .->places__final_corrections;
+    places__final_returned_compile-. if final cleanup done .->places__final_cleanup_cleaned;
+
+    places__final_corrections-.
+    "`if final cleanup done
+    lkup on :norm`" .->
+    places__final_cleanup_cleaned;
+
+    places__init_cleaned_lookup-.
+    if final cleanup done .->
+    places__final_cleaned_lookup;
+
+    places__final_cleanup_cleaned-.
+    "`if final cleanup done
+    lkup on :norm`" .->
+    places__final_cleaned_lookup;
+
+    places__orig_normalized-.
+    "`if final cleanup done
+    lkup on :norm_combined`" .->
+    places__final_cleaned_lookup;
+
+    places__cleaned_unique-->places__cleaned_notes;
+
+    places__cleaned_notes-.
+    "`if final cleanup done
+    lkup on :norm_combined`" .->
+    places__final_cleaned_lookup;
+
+    places__notes_extracted-.
+    "`if final cleanup done
+    lkup on :orig_combined`" .->
+    places__final_cleaned_lookup;
+
+    prep__obj_geography-->obj_geography__authority_merge;
+
+    places__final_cleaned_lookup-.
+    "`if final cleanup done
+    lkup on :orig_combined`" .->
+    obj_geography__authority_merge;
+
+    prep__con_geography-->con_geography__authority_merge;
+
+    places__final_cleaned_lookup-.
+    "`if final cleanup done
+    lkup on :orig_combined`" .->
+    con_geography__authority_merge;
+
+    reference_master__places-->reference_master__place_authority_merge;
+
+    places__final_cleaned_lookup-.
+    "`if final cleanup done
+    lkup on :orig_combined`" .->
+    reference_master__place_authority_merge;
