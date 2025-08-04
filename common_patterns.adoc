@@ -4,7 +4,6 @@
 
 = Common patterns/snippets
 
-
 toc::[]
 
 == All records of a type
