@@ -155,6 +155,13 @@ The following is a query fragment to append basic object id fields to `collectio
 * id (The database id of the collectionobjects_common row for each object)
 * objectnumber
 
+Basic identifying info includes:
+
+* title (first value)
+* object name (first value; prefers objectNameControlled if populated in first field group, but will take uncontrolled objectName if there is no controlled value)
+* object production date (first display value)
+* object production person (first value)
+
 [source,sql]
 ----
 title as (
