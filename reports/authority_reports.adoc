@@ -118,3 +118,114 @@ select termdisplayname, title, forename, initials, surname, nameadditions, email
 from names
 inner join emails on emails.personid = names.personid
 ----
+
+== All authority terms in an instance with alternate terms and IDs
+
+NOTE: Does not include Material authority, which is only defined/used in the `materials` domain profile.
+
+[source,sql]
+----
+with authvocabs as (
+select auth.vocabtype as authority,
+  auth.displayname as authority_vocab,
+  auth.shortIdentifier as vocabshortid,
+  hier.name as vocabcsid from
+(select auth.id,auth.vocabtype, auth.displayname, auth.shortIdentifier
+from chronologyauthorities_common auth
+union
+select auth.id,auth.vocabtype, auth.displayname, auth.shortIdentifier
+from citationauthorities_common auth
+union
+select auth.id,auth.vocabtype, auth.displayname, auth.shortIdentifier
+from conceptauthorities_common auth
+union
+select auth.id,auth.vocabtype, auth.displayname, auth.shortIdentifier
+from locationauthorities_common auth
+union
+select auth.id,auth.vocabtype, auth.displayname, auth.shortIdentifier
+from orgauthorities_common auth
+union
+select auth.id,auth.vocabtype, auth.displayname, auth.shortIdentifier
+from personauthorities_common auth
+union
+select auth.id,auth.vocabtype, auth.displayname, auth.shortIdentifier
+from placeauthorities_common auth
+union
+select auth.id,auth.vocabtype, auth.displayname, auth.shortIdentifier
+from taxonomyauthority_common auth
+union
+select auth.id,auth.vocabtype, auth.displayname, auth.shortIdentifier
+from workauthorities_common auth
+) auth
+inner join hierarchy hier on auth.id = hier.id
+),
+altterms as (
+select hier.parentid as termid,
+string_agg(terms.termdisplayname, '|' order by hier.pos) as altterms from
+(
+select at.id, at.termdisplayname from chronologytermgroup at
+union
+select at.id, at.termdisplayname from citationtermgroup at
+union
+select at.id, at.termdisplayname from concepttermgroup at
+union
+select at.id, at.termdisplayname from loctermgroup at
+union
+select at.id, at.termdisplayname from orgtermgroup at
+union
+select at.id, at.termdisplayname from persontermgroup at
+union
+select at.id, at.termdisplayname from placetermgroup at
+union
+select at.id, at.termdisplayname from taxontermgroup at
+union
+select at.id, at.termdisplayname from worktermgroup at
+) terms
+inner join hierarchy hier on hier.id = terms.id
+  and hier.name like '%TermGroupList'
+  and hier.pos > 0
+group by hier.parentid
+)
+
+select authvocabs.authority as inauthority,
+  authvocabs.authority_vocab as inauthvocabulary,
+  authvocabs.vocabshortid,
+  deurn(t.refname) as primaryterm,
+  altterms.altterms,
+  cc.uri as termuri,
+  t.refname as termrefname,
+  termhier.name as termcsid
+from(
+select terms.id, terms.refname, terms.inauthority
+from chronologies_common terms
+union
+select terms.id, terms.refname, terms.inauthority
+from citations_common terms
+union
+select terms.id, terms.refname, terms.inauthority
+from concepts_common terms
+union
+select terms.id, terms.refname, terms.inauthority
+from locations_common terms
+union
+select terms.id, terms.refname, terms.inauthority
+from organizations_common terms
+union
+select terms.id, terms.refname, terms.inauthority
+from persons_common terms
+union
+select terms.id, terms.refname, terms.inauthority
+from places_common terms
+union
+select terms.id, terms.refname, terms.inauthority
+from taxon_common terms
+union
+select terms.id, terms.refname, terms.inauthority
+from works_common terms
+) t
+inner join misc on t.id = misc.id and misc.lifecyclestate != 'deleted'
+inner join authvocabs on t.inauthority = authvocabs.vocabcsid
+inner join hierarchy termhier on t.id = termhier.id
+inner join collectionspace_core cc on cc.id = t.id
+left outer join altterms on altterms.termid = t.id
+----
