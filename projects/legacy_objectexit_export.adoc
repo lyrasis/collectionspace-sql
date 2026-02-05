@@ -43,11 +43,18 @@ WITH
         SELECT
             oec.*,
             hier.name AS objectexit_csid,
-            sdg.datedisplaydate AS exitdate
+            sdg.datedisplaydate AS exitdate,
+            TO_CHAR(
+                core.updatedat at TIME ZONE CURRENT_SETTING('datamig.client_timezone'),
+                'YYYY-MM-DD'
+            ) AS updated_date,
+            core.updatedby,
+            core.updatedat
         FROM
             objectexit_common oec
             INNER JOIN misc ON misc.id = oec.id
             AND misc.lifecyclestate != 'deleted'
+            INNER JOIN collectionspace_core core ON core.id = oec.id
             INNER JOIN hierarchy hier ON oec.id = hier.id
             LEFT JOIN hierarchy dh ON dh.parentid = oec.id
             AND dh.primarytype = 'structuredDateGroup'
@@ -185,7 +192,9 @@ SELECT
     deurn (base.groupdisposalcurrency) AS groupdisposalcurrency,
     base.groupdisplosalvalue,
     base.displosalprovisos,
-    base.displosalnote
+    base.displosalnote,
+    base.updated_date,
+    base.updatedby
 FROM
     base
     LEFT JOIN methods ON base.id = methods.id
@@ -194,6 +203,8 @@ FROM
     LEFT JOIN daindividual ON base.id = daindividual.id
     LEFT JOIN dadate ON base.id = dadate.id
     LEFT JOIN danote ON base.id = danote.id
+ORDER BY
+    base.updatedat DESC
 ----
 
 == objectexits are related to what other record types?
