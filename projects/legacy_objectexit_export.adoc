@@ -1,0 +1,271 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+:imagesdir: https://raw.githubusercontent.com/lyrasis/dts-data-migration-docs/main/images
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+= Legacy objectexit procedure data and relationships export
+
+[WARNING]
+====
+The query returning the objectexit procedure data was developed for a custom UI profile closely based on the community supported anthro domain profile.
+
+It may need to be updated for other profiles, if there are differences in the objectexit procedure.
+====
+
+NOTE: The query returning relationship info between objectexit procedures and other records should work for all profiles.
+
+toc::[]
+
+== objectexit procedure data
+
+IMPORTANT: You must set the site timezone before running this query.
+See xref:../common_patterns.adoc#timezone[Converting date values to site timezone].
+
+[WARNING]
+====
+*Only the `dateDisplayDate` field is exported from the `exitDateGroup` structured date.*
+
+Run the xref:../reports/structured_date_field_data.adoc#noncomputablecheck[non-computable structure date value check query] to determine if any additional structured date detail fields need to be selected in order to prevent data loss.
+====
+
+[source,sql]
+----
+WITH
+    base AS (
+        SELECT
+            oec.*,
+            hier.name AS objectexit_csid,
+            sdg.datedisplaydate AS exitdate
+        FROM
+            objectexit_common oec
+            INNER JOIN misc ON misc.id = oec.id
+            AND misc.lifecyclestate != 'deleted'
+            INNER JOIN hierarchy hier ON oec.id = hier.id
+            LEFT JOIN hierarchy dh ON dh.parentid = oec.id
+            AND dh.primarytype = 'structuredDateGroup'
+            AND dh.name = 'objectexit_common:exitDateGroup'
+            LEFT JOIN structureddategroup sdg ON sdg.id = dh.id
+    ),
+    methods AS (
+        SELECT
+            meth.id,
+            STRING_AGG(
+                meth.item,
+                '|'
+                ORDER BY
+                    meth.pos
+            ) AS methods
+        FROM
+            objectexit_common_exitmethods meth
+        GROUP BY
+            meth.id
+    ),
+    apps AS (
+        SELECT
+            COALESCE(deurn (dag.deaccessionapprovalstatus), '%NULLVALUE%') AS deaccessionapprovalstatus,
+            COALESCE(deurn (dag.deaccessionapprovalgroup), '%NULLVALUE%') AS deaccessionapprovalgroup,
+            COALESCE(
+                TO_CHAR(
+                    dag.deaccessionapprovaldate at TIME ZONE CURRENT_SETTING('datamig.client_timezone'),
+                    'YYYY-MM-DD'
+                ),
+                '%NULLVALUE%'
+            ) AS deaccessionapprovaldate,
+            COALESCE(dag.deaccessionapprovalnote, '%NULLVALUE%') AS deaccessionapprovalnote,
+            COALESCE(deurn (dag.deaccessionapprovalindividual), '%NULLVALUE%') AS deaccessionapprovalindividual,
+            h.parentid,
+            h.pos
+        FROM
+            deacapprovalgroup dag
+            INNER JOIN hierarchy h ON dag.id = h.id
+    ),
+    dastatus AS (
+        SELECT
+            apps.parentid AS id,
+            STRING_AGG(
+                apps.deaccessionapprovalstatus,
+                '|'
+                ORDER BY
+                    apps.pos
+            ) AS deaccessionapprovalstatus
+        FROM
+            apps
+        GROUP BY
+            apps.parentid
+    ),
+    dagroup AS (
+        SELECT
+            apps.parentid AS id,
+            STRING_AGG(
+                apps.deaccessionapprovalgroup,
+                '|'
+                ORDER BY
+                    apps.pos
+            ) AS deaccessionapprovalgroup
+        FROM
+            apps
+        GROUP BY
+            apps.parentid
+    ),
+    daindividual AS (
+        SELECT
+            apps.parentid AS id,
+            STRING_AGG(
+                apps.deaccessionapprovalindividual,
+                '|'
+                ORDER BY
+                    apps.pos
+            ) AS deaccessionapprovalindividual
+        FROM
+            apps
+        GROUP BY
+            apps.parentid
+    ),
+    dadate AS (
+        SELECT
+            apps.parentid AS id,
+            STRING_AGG(
+                apps.deaccessionapprovaldate,
+                '|'
+                ORDER BY
+                    apps.pos
+            ) AS deaccessionapprovaldate
+        FROM
+            apps
+        GROUP BY
+            apps.parentid
+    ),
+    danote AS (
+        SELECT
+            apps.parentid AS id,
+            STRING_AGG(
+                apps.deaccessionapprovalnote,
+                '|'
+                ORDER BY
+                    apps.pos
+            ) AS deaccessionapprovalnote
+        FROM
+            apps
+        GROUP BY
+            apps.parentid
+    )
+SELECT
+    base.objectexit_csid,
+    base.exitnumber,
+    base.exitdate AS exitdategroup,
+    base.exitreason,
+    base.exitquantity,
+    methods.methods AS exitmethod,
+    dagroup.deaccessionapprovalgroup,
+    daindividual.deaccessionapprovalindividual,
+    dastatus.deaccessionapprovalstatus,
+    dadate.deaccessionapprovaldate,
+    danote.deaccessionapprovalnote,
+    base.exitnote,
+    base.packingnote,
+    base.deaccessiondate,
+    TO_CHAR(
+        base.disposaldate at TIME ZONE CURRENT_SETTING('datamig.client_timezone'),
+        'YYYY-MM-DD'
+    ) AS disposaldate,
+    deurn (base.disposalmethod),
+    base.displosalreason,
+    base.disposalproposedrecipient AS disposalproposedrecipientrefname,
+    base.disposalrecipient AS disposalrecipientrefname,
+    deurn (base.disposalcurrency) AS disposalcurrency,
+    base.displosalvalue,
+    deurn (base.groupdisposalcurrency) AS groupdisposalcurrency,
+    base.groupdisplosalvalue,
+    base.displosalprovisos,
+    base.displosalnote
+FROM
+    base
+    LEFT JOIN methods ON base.id = methods.id
+    LEFT JOIN dastatus ON base.id = dastatus.id
+    LEFT JOIN dagroup ON base.id = dagroup.id
+    LEFT JOIN daindividual ON base.id = daindividual.id
+    LEFT JOIN dadate ON base.id = dadate.id
+    LEFT JOIN danote ON base.id = danote.id
+----
+
+== objectexits are related to what other record types?
+
+Run this to determine if more work is needed to get full info out of <<rels>>
+
+[source,sql]
+----
+SELECT DISTINCT
+    objectdocumenttype
+FROM
+    relations_common rel
+WHERE
+    rel.subjectdocumenttype = 'ObjectExit'
+----
+
+[#rels]
+== objectexit relationship details
+
+[IMPORTANT]
+====
+Run the following before you run the query.
+If you switch to running queries for a different client in the same session, you will be switching to a different database, and you'll need to reset this.
+====
+
+[source,sql]
+----
+set datamig.client_url_base = 'https://sitecode.collectionspace.org/cspace/sitecode';
+----
+
+
+[source,sql]
+----
+SELECT
+  rel.objectdocumenttype,
+  coalesce (
+    collobj.objectnumber,
+    acq.acquisitionreferencenumber,
+    cc.conditioncheckrefnumber,
+    grp.title,
+    intake.entrynumber,
+    media.identificationnumber,
+    lmi.movementreferencenumber,
+    exit.exitnumber,
+    vc.valuationcontrolrefnumber,
+    ''
+  ) as object_readable_id,
+  concat(
+    current_setting('datamig.client_url_base'), '/record/all/',
+    rel.objectcsid
+  ) as object_app_url,
+  rel.objecturi as object_api_uri,
+  oe.exitnumber as subject_readable_id,
+  concat(
+    current_setting('datamig.client_url_base'), '/record/all/',
+    rel.subjectcsid
+  ) as subject_app_url,
+  rel.subjecturi as subject_api_uri
+FROM
+    relations_common rel
+    inner join hierarchy subhier on subhier.name = rel.subjectcsid
+    inner join objectexit_common oe on subhier.id = oe.id
+    inner join hierarchy objhier on objhier.name = rel.objectcsid
+    left join collectionobjects_common collobj on objhier.id = collobj.id
+    left join acquisitions_common acq on objhier.id = acq.id
+    left join conditionchecks_common cc on objhier.id = cc.id
+    left join groups_common grp on objhier.id = grp.id
+    left join intakes_common intake on objhier.id = intake.id
+    left join media_common media on objhier.id = media.id
+    left join movements_common lmi on objhier.id = lmi.id
+    left join objectexit_common exit on objhier.id = exit.id
+    left join valuationcontrols_common vc on objhier.id = vc.id
+WHERE
+    rel.subjectdocumenttype = 'ObjectExit'
+----
