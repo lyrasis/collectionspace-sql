@@ -33,6 +33,7 @@ For Lyrasis hosted clients, this information can be found in the collectionspace
 
 toc::[]
 
+[#hiernames]
 == List of populated structured date fields
 
 [source,sql]
@@ -42,6 +43,56 @@ FROM HIERARCHY HIER
 INNER JOIN STRUCTUREDDATEGROUP SD ON SD.ID = HIER.ID
   AND SD.DATEDISPLAYDATE IS NOT NULL
 WHERE HIER.PRIMARYTYPE = 'structuredDateGroup'
+----
+
+[#noncomputablecheck]
+== Structured date values with non-computable detail values
+
+In general, we assume the earliest/latest year, month, day, and scalar values can be re-computed/parsed from the `dateDisplayDate` value.
+
+Info in the period, association, note, certainty, and qualifier fields generally cannot.
+
+If none of those fields are populated for a given structured date group used in a record, then you generally can round-trip safely by exporting only `dateDisplayDate`.
+
+The following query returns any values in a given structured date group where these non-computable details are populated.
+
+You must replace the `AND hier.name = ` value with a structured date group defined in a record.
+Use the <<hiername, populated structured date fields query>> to get a list.
+
+[source,sql]
+----
+SELECT
+    sdg.datedisplaydate,
+    sdg.dateperiod,
+    sdg.dateassociation,
+    sdg.datenote,
+    sdg.dateearliestsinglecertainty,
+    sdg.dateearliestsinglequalifier,
+    sdg.dateearliestsinglequalifiervalue,
+    sdg.dateearliestsinglequalifierunit,
+    sdg.datelatestcertainty,
+    sdg.datelatestqualifier,
+    sdg.datelatestqualifiervalue,
+    sdg.datelatestqualifierunit
+FROM
+    structureddategroup sdg
+    INNER JOIN hierarchy hier ON sdg.id = hier.id
+    AND hier.primarytype = 'structuredDateGroup'
+    AND hier.name = 'objectexit_common:exitDateGroup'
+WHERE
+    (
+        sdg.dateperiod IS NOT NULL
+        OR sdg.dateassociation IS NOT NULL
+        OR sdg.datenote IS NOT NULL
+        OR sdg.dateearliestsinglecertainty IS NOT NULL
+        OR sdg.dateearliestsinglequalifier IS NOT NULL
+        OR sdg.dateearliestsinglequalifiervalue IS NOT NULL
+        OR sdg.dateearliestsinglequalifierunit IS NOT NULL
+        OR sdg.datelatestcertainty IS NOT NULL
+        OR sdg.datelatestqualifier IS NOT NULL
+        OR sdg.datelatestqualifiervalue IS NOT NULL
+        OR sdg.datelatestqualifierunit IS NOT NULL
+    )
 ----
 
 == Date details
