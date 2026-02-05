@@ -228,44 +228,48 @@ set datamig.client_url_base = 'https://sitecode.collectionspace.org/cspace/sitec
 [source,sql]
 ----
 SELECT
-  rel.objectdocumenttype,
-  coalesce (
-    collobj.objectnumber,
-    acq.acquisitionreferencenumber,
-    cc.conditioncheckrefnumber,
-    grp.title,
-    intake.entrynumber,
-    media.identificationnumber,
-    lmi.movementreferencenumber,
-    exit.exitnumber,
-    vc.valuationcontrolrefnumber,
-    ''
-  ) as object_readable_id,
-  concat(
-    current_setting('datamig.client_url_base'), '/record/all/',
-    rel.objectcsid
-  ) as object_app_url,
-  rel.objecturi as object_api_uri,
-  oe.exitnumber as subject_readable_id,
-  concat(
-    current_setting('datamig.client_url_base'), '/record/all/',
-    rel.subjectcsid
-  ) as subject_app_url,
-  rel.subjecturi as subject_api_uri
+    rel.objectdocumenttype,
+    COALESCE(
+        collobj.objectnumber,
+        acq.acquisitionreferencenumber,
+        cc.conditioncheckrefnumber,
+        grp.title,
+        intake.entrynumber,
+        media.identificationnumber,
+        lmi.movementreferencenumber,
+        exit.exitnumber,
+        vc.valuationcontrolrefnumber,
+        ''
+    ) AS object_readable_id,
+    CONCAT(CURRENT_SETTING('datamig.client_url_base'), '/record/all/', rel.objectcsid) AS object_app_url,
+    rel.objecturi AS object_api_uri,
+    oe.exitnumber AS subject_readable_id,
+    CONCAT(CURRENT_SETTING('datamig.client_url_base'), '/record/all/', rel.subjectcsid) AS subject_app_url,
+    rel.subjecturi AS subject_api_uri,
+    TO_CHAR(
+        core.updatedat at TIME ZONE CURRENT_SETTING('datamig.client_timezone'),
+        'YYYY-MM-DD'
+    ) AS updated_date,
+    core.updatedby
 FROM
     relations_common rel
-    inner join hierarchy subhier on subhier.name = rel.subjectcsid
-    inner join objectexit_common oe on subhier.id = oe.id
-    inner join hierarchy objhier on objhier.name = rel.objectcsid
-    left join collectionobjects_common collobj on objhier.id = collobj.id
-    left join acquisitions_common acq on objhier.id = acq.id
-    left join conditionchecks_common cc on objhier.id = cc.id
-    left join groups_common grp on objhier.id = grp.id
-    left join intakes_common intake on objhier.id = intake.id
-    left join media_common media on objhier.id = media.id
-    left join movements_common lmi on objhier.id = lmi.id
-    left join objectexit_common exit on objhier.id = exit.id
-    left join valuationcontrols_common vc on objhier.id = vc.id
+    INNER JOIN hierarchy subhier ON subhier.name = rel.subjectcsid
+    INNER JOIN objectexit_common oe ON subhier.id = oe.id
+    INNER JOIN hierarchy objhier ON objhier.name = rel.objectcsid
+    INNER JOIN misc ON misc.id = objhier.id
+    AND misc.lifecyclestate != 'deleted'
+    INNER JOIN collectionspace_core core ON core.id = objhier.id
+    LEFT JOIN collectionobjects_common collobj ON objhier.id = collobj.id
+    LEFT JOIN acquisitions_common acq ON objhier.id = acq.id
+    LEFT JOIN conditionchecks_common cc ON objhier.id = cc.id
+    LEFT JOIN groups_common grp ON objhier.id = grp.id
+    LEFT JOIN intakes_common intake ON objhier.id = intake.id
+    LEFT JOIN media_common media ON objhier.id = media.id
+    LEFT JOIN movements_common lmi ON objhier.id = lmi.id
+    LEFT JOIN objectexit_common exit ON objhier.id = exit.id
+    LEFT JOIN valuationcontrols_common vc ON objhier.id = vc.id
 WHERE
     rel.subjectdocumenttype = 'ObjectExit'
+ORDER BY
+    core.updatedat DESC
 ----
