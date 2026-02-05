@@ -1,6 +1,18 @@
 :toc:
 :toc-placement!:
 :toclevels: 4
+:toc:
+:toc-placement!:
+:toclevels: 4
+:imagesdir: https://raw.githubusercontent.com/lyrasis/dts-data-migration-docs/main/images
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
 
 = Structured date field data
 
