@@ -183,7 +183,7 @@ SELECT
         base.disposaldate at TIME ZONE CURRENT_SETTING('datamig.client_timezone'),
         'YYYY-MM-DD'
     ) AS disposaldate,
-    deurn (base.disposalmethod),
+    deurn (base.disposalmethod) as disposalmethod,
     base.displosalreason,
     base.disposalproposedrecipient AS disposalproposedrecipientrefname,
     base.disposalrecipient AS disposalrecipientrefname,
