@@ -217,3 +217,25 @@ left outer join prod on obj.id = prod.id
 )
 select * from objdata;
 ----
+
+[#timezone]
+== Converting date values to site timezone
+
+Non-structured date fields and the `datelatestscalarvalue` and `dateearliestscalarvalue` fields in the `structureddategroup` table are defined with the https://www.postgresql.org/docs/18/datatype-datetime.html[`timestamp without time zone` data type].
+
+If the raw values of these fields are exported they will be the UTC date/time that the originally entered local date/time values were converted to for storage.
+This can sometimes cause date values to flip, especially if the local offsets from UTC are large.
+
+You can set the local timezone for a database per-session by running the following query:
+
+[source,sql]
+----
+set datamig.client_timezone = 'America/New_York';
+----
+
+Then you can format the date field values appropriately in your query like so:
+
+[source,sql]
+----
+TO_CHAR(base.disposaldate at TIME ZONE current_setting('datamig.client_timezone'), 'YYYY-MM-DD') as disposaldate
+----
