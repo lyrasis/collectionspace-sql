@@ -165,7 +165,7 @@ WITH
             apps.parentid
     )
 SELECT
-    base.objectexit_csid,
+    CONCAT('/objectexit/', base.objectexit_csid) AS objectexit_api_uri,
     base.exitnumber,
     base.exitdate AS exitdategroup,
     base.exitreason,
