@@ -1,0 +1,47 @@
+:toc:
+:toc-placement!:
+:toclevels: 4
+:imagesdir: URL TO RAW.GITHUBUSERCONTENT.COM IMAGES FOLDER
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+= Data extraction queries
+
+This page contains descriptions of the raw SQL files stored in this directory.
+
+toc::[]
+
+== Caveats and warnings
+
+* Because CollectionSpace has 9 different community-supported profiles, it is very difficult to write a query that will work seamlessly across all possible CollectionSpace instances.
+* These queries will have been written for a particular use, and may not include fields that were not populated in the instance on which they were developed.
+* We make no guarantee of that these queries are performant.
+Many of them were developed on a non-production instance of CollectionSpace where getting a basic working query was a higher priority than tuning for performance.
+
+We will list the profiles/instances/dates on which each of these was developed and/or last tested.
+
+[WARNING]
+====
+*Always* carefully verify each query before assuming it "just works".
+====
+
+== The queries
+
+=== `contacts.sql`
+
+All data from contact subrecords.
+Contact data from organization and person records is included, as is:
+
+* First `termdisplayname` value for the authority term record in which the contact subrecord is nested
+* End of the URL of the authority term record (you'll need to prepend your instance's URL base to this)
+
+.Development history
+* 2026-04-23
+** Target instance runs on a highly customized UI profile.
+All `addressgroup` fields in this query are custom.
