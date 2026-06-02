@@ -12,9 +12,7 @@ endif::[]
 
 = Modeling of media handling, blobs, and derivative files in the database
 
-This is incomplete and there's no timeline for additional work on it.
-
-WARNING: The diagrams in this document are not full physical models of the database, but highlight the most important fields and relationships for working with these records.
+toc::[]
 
 == Media handling and blobs
 
@@ -27,30 +25,283 @@ A media handling procedure may have 0 or 1 blob subrecord associated with it.
 
 A given blob subrecord may be associated with 0 to n media handling procedures. If a blob is associated with 0 media handling procedures, it is considered orphaned.
 
-[source,mermaid]
+== From Media Handling record to Blob record
+
+[#media]
+=== Media Handling
+
+[source,sql]
 ----
----
-title: Relationship between Media Handling and Blob
----
-erDiagram
-  MEDIA_COMMON }o..|| HIERARCHY : ""
-  HIERARCHY ||..|| BLOBS_COMMON : ""
-  MEDIA_COMMON {
-    csid blobcsid FK "hierarchy.name"
-  }
-  HIERARCHY {
-  uuid id PK
-  csid name FK "media_common.blobcsid"
-  string primarytype "Blob"
-  }
-  BLOBS_COMMON {
-    uuid id PK
-    int length "file size in bytes"
-    string digest "is S3 object key of stored orig file"
-    uuid repositoryid "id of file if stored in filesystem (?)"
-    string mimetype "of ingested file"
-    string name "filename of ingested file"
-  }
+select id, blobcsid, identificationnumber from media_common
+where identificationnumber = 'MH2006.230371'
 ----
 
-== Blobs and derivatives
+....
+| "id"                                   | "blobcsid"                | "identificationnumber" |
+|----------------------------------------+---------------------------+------------------------|
+| "30fd9f11-a809-4a60-97a7-892b8e3a3463" | "4e1acf63-0028-4afc-8310" | "MH2006.230371"        |
+....
+
+Taking the `blobcsid`...
+
+[#getblobid]
+=== Get blob id from its csid
+
+[source,sql]
+----
+select id, parentid, name, primarytype from hierarchy
+where name = '4e1acf63-0028-4afc-8310'
+----
+
+....
+| "id"                                   | "parentid"                             | "name"                    | "primarytype" |
+|----------------------------------------+----------------------------------------+---------------------------+---------------|
+| "c548e8a6-f2ea-4979-b14d-66656111b33c" | "74588276-d585-4b0b-886b-160722046941" | "4e1acf63-0028-4afc-8310" | "Blob"        |
+....
+
+NOTE: The `parentid` of the Blob entry in hierarchy is NOT the id of the media handling record.
+
+Taking the `id`...
+
+[#blob]
+=== Blob
+
+[source,sql]
+----
+select * from blobs_common
+where id = 'c548e8a6-f2ea-4979-b14d-66656111b33c'
+----
+
+....
+| "id"                                   | "uri" | "encoding" | "mimetype"   | "repositoryid"                         | "name"         | "data" | "digest" | "length" |
+|----------------------------------------+-------+------------+--------------+----------------------------------------+----------------+--------+----------+----------|
+| "c548e8a6-f2ea-4979-b14d-66656111b33c" |       |            | "image/jpeg" | "fd94312a-3629-48a3-ae4c-1d052601be59" | "z0017760.jpg" |        |          | "158038" |
+....
+
+== From Blob to top of hierarchy
+
+[#blobblobsworkspace]
+=== Blob to Blobs Workspace
+
+Taking the `parentid` of the Blob entry in <<getblobid,`hierarchy`>>:
+
+[source,sql]
+----
+select id, parentid, name, primarytype from hierarchy
+where id = '74588276-d585-4b0b-886b-160722046941'
+----
+
+....
+| "id"                                   | "parentid"                             | "name"  | "primarytype" |
+|----------------------------------------+----------------------------------------+---------+---------------|
+| "74588276-d585-4b0b-886b-160722046941" | "d5a9f37e-5091-4de4-82ab-0578a1aa73a3" | "Blobs" | "Workspace"   |
+....
+
+NOTE: The children of `74588276-d585-4b0b-886b-160722046941` appear to include ALL Picture repository workspaces and Blob records.
+
+Up to its parent:
+
+[#blobsworkspaceworkspacesworkspaceroot]
+=== Blobs Workspace to Workspaces WorkspaceRoot
+[source,sql]
+----
+select id, parentid, name, primarytype from hierarchy
+where id = 'd5a9f37e-5091-4de4-82ab-0578a1aa73a3'
+----
+
+....
+| "id"                                   | "parentid"                             | "name"       | "primarytype"   |
+|----------------------------------------+----------------------------------------+--------------+-----------------|
+| "d5a9f37e-5091-4de4-82ab-0578a1aa73a3" | "7363461f-a814-4dcb-885e-957037e36a8f" | "Workspaces" | "WorkspaceRoot" |
+....
+
+Up to this one's parent:
+
+[#workspacesworkspacerootdomain]
+=== Workspaces WorkspaceRoot to Domain
+[source,sql]
+----
+select id, parentid, name, primarytype from hierarchy
+where id = '7363461f-a814-4dcb-885e-957037e36a8f'
+----
+
+....
+| "id"                                   | "parentid"                             | "name"        | "primarytype" |
+|----------------------------------------+----------------------------------------+---------------+---------------|
+| "7363461f-a814-4dcb-885e-957037e36a8f" | "bb03aa05-75a9-4b07-9e62-b64179cfaacc" | "omca-domain" | "Domain"      |
+....
+
+Up to the top...
+
+[#domainroot]
+=== Domain to Root
+[source,sql]
+----
+select id, parentid, name, primarytype from hierarchy
+where id = 'bb03aa05-75a9-4b07-9e62-b64179cfaacc'
+----
+
+....
+| "id"                                   | "parentid" | "name" | "primarytype" |
+|----------------------------------------+------------+--------+---------------|
+| "bb03aa05-75a9-4b07-9e62-b64179cfaacc" |            |        | "Root"        |
+....
+
+== From Blob to blob content and derivative info
+
+CAUTION: There are also `file` (for non-image blobs), `image_metadata`, and `imageinfo` tables I haven't yet included in this documentation.
+As of this moment, I cannot find a way to connect the image blob I was using here as an example to the `image_metadata` or `imageinfo` tables.
+See <<imageinfo>>.
+
+[#pictureworkspace]
+=== Picture Repository/Workspace
+
+Taking the `repositoryid` from <<blob,the Blob record>>:
+
+[source,sql]
+----
+select id, parentid, name, primarytype from hierarchy
+where id = 'fd94312a-3629-48a3-ae4c-1d052601be59'
+----
+
+....
+| "id"                                   | "parentid"                             | "name"         | "primarytype" |
+|----------------------------------------+----------------------------------------+----------------+---------------|
+| "fd94312a-3629-48a3-ae4c-1d052601be59" | "74588276-d585-4b0b-886b-160722046941" | "z0017760.jpg" | "Picture"     |
+....
+
+NOTE: The `parentid` here is the id of the <<blobblobsworkspace,Blobs Workspace>>.
+
+Taking the `parentid`...
+
+[#childrenofblobsworkspace ]
+=== Children of Blobs Picture Workspace
+
+[source,sql]
+----
+select id, pos, name, primarytype
+from hierarchy
+where parentid = 'fd94312a-3629-48a3-ae4c-1d052601be59'
+----
+
+....
+| "id"                                   | "pos" | "name"    | "primarytype" |
+|----------------------------------------+-------+-----------+---------------|
+| "36997a19-f8fb-497b-97bc-35921557a3df" |       | "content" | "content"     |
+| "34bf9963-d7a2-4dd8-9061-a49af14444b2" |     0 | "views"   | "view"        |
+| "0fc521e1-2a31-41bb-b36e-646bbd8dda18" |     1 | "views"   | "view"        |
+| "1aa0a6a9-9527-4c3a-83ad-15ab6f1f049b" |     2 | "views"   | "view"        |
+| "f8685d04-c458-48d6-8ce6-6bc34bbc8685" |     3 | "views"   | "view"        |
+| "dc64186c-36eb-4bfd-866a-272734697352" |     4 | "views"   | "view"        |
+....
+
+[#content]
+=== Content
+
+[source,sql]
+----
+select * from content
+where id = '36997a19-f8fb-497b-97bc-35921557a3df'
+----
+
+....
+| "id"                                   | "name"         | "length" | "data"                             | "encoding" | "digest" | "mime-type"  |
+|----------------------------------------+----------------+----------+------------------------------------+------------+----------+--------------|
+| "36997a19-f8fb-497b-97bc-35921557a3df" | "z0017760.jpg" |   158038 | "e1cacc97d44c6602163f3c87808c794e" |            |          | "image/jpeg" |
+....
+
+[#derivativeview]
+=== Derivative view
+
+Taking the `id` of one of the views rows in <<childrenofblobsworkspace>>:
+
+[source,sql]
+----
+select * from view
+where id = '34bf9963-d7a2-4dd8-9061-a49af14444b2'
+----
+
+....
+| "id"                                   | "title"  | "height" | "tag"    | "description" | "width" | "filename"            |
+|----------------------------------------+----------+----------+----------+---------------+---------+-----------------------|
+| "34bf9963-d7a2-4dd8-9061-a49af14444b2" | "Medium" |      480 | "medium" | "Medium Size" |     640 | "Medium_z0017760.jpg" |
+....
+
+[#findderivativecontentrecord]
+=== Find derivative content record
+
+[source,sql]
+----
+select id, name, primarytype from hierarchy
+where parentid = '34bf9963-d7a2-4dd8-9061-a49af14444b2'
+----
+
+....
+| "id"                                   | "name"    | "primarytype" |
+|----------------------------------------+-----------+---------------|
+| "343e03a4-4ce6-4fae-9f26-201d3a4f1394" | "content" | "content"     |
+....
+
+[#derivativecontent]
+=== Derivative content
+
+[source,sql]
+----
+select * from content
+where id = '343e03a4-4ce6-4fae-9f26-201d3a4f1394'
+----
+
+....
+| "id"                                   | "name"                | "length" | "data"                             | "encoding" | "digest"                           | "mime-type"  |
+|----------------------------------------+-----------------------+----------+------------------------------------+------------+------------------------------------+--------------|
+| "343e03a4-4ce6-4fae-9f26-201d3a4f1394" | "Medium_z0017760.jpg" |   147748 | "a1474287c2be9ef2178673060911ee65" |            | "a1474287c2be9ef2178673060911ee65" | "image/jpeg" |
+....
+
+
+[#imageinfo]
+== imageinfo notes
+
+This linkage path does not appear to exist for all images.
+
+If it does, I am not seeing how I identify the way to traverse down to image info from a given blob/view.
+
+....
+-- select * from imageinfo
+-- -- id of first row 82a4ec56-12cd-4105-a059-aca3eed8a94f
+
+-- -- imageinfo
+-- select * from hierarchy
+-- where id = '82a4ec56-12cd-4105-a059-aca3eed8a94f'
+-- -- parentid 7d1b4484-b2b3-4b9c-b198-d19d6cc509db
+-- -- name info
+-- -- primarytype imageinfo
+
+-- -- view
+-- select * from hierarchy
+-- where id = '7d1b4484-b2b3-4b9c-b198-d19d6cc509db'
+-- -- parentid 9a04bbec-a638-4177-9343-a90aa807f00c
+-- -- name views
+-- -- primarytype view
+
+-- -- Picture
+-- select * from hierarchy
+-- where id = '9a04bbec-a638-4177-9343-a90aa807f00c'
+-- -- parentid 5a71e428-acc5-4af0-b778-427048bfafd2
+-- -- name 2015.5.3A.JPG
+-- -- primarytype Picture
+
+-- -- non-blob workspace
+-- select * from hierarchy
+-- where id = '5a71e428-acc5-4af0-b778-427048bfafd2'
+-- -- name = '1a73742d-f9f3-4fe3-9a3f-1aaf892386a0'
+-- -- parentid = '74588276-d585-4b0b-886b-160722046941'
+-- -- id = '5a71e428-acc5-4af0-b778-427048bfafd2'
+
+-- -- blobs workspace
+-- select * from hierarchy
+-- where id = '74588276-d585-4b0b-886b-160722046941'
+-- -- id 74588276-d585-4b0b-886b-160722046941 -- ALL Picture and Blob primary types?
+-- -- parentid d5a9f37e-5091-4de4-82ab-0578a1aa73a3
+-- -- name Blobs
+-- -- primarytype Workspace
+....
