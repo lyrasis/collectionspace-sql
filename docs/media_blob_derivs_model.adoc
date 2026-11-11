@@ -305,3 +305,25 @@ If it does, I am not seeing how I identify the way to traverse down to image inf
 -- -- name Blobs
 -- -- primarytype Workspace
 ....
+
+== Get from content.id to blob.id/.csid
+
+In this case `c8d79078-eea0-412a-851f-ba04c1dff801` is the content.id.
+
+[source,sql]
+----
+WITH RECURSIVE parent_table AS (
+  SELECT id, parentid, primarytype
+  FROM hierarchy
+  WHERE id = 'c8d79078-eea0-412a-851f-ba04c1dff801'
+  UNION ALL
+  SELECT h.id, h.parentid, h.primarytype
+  FROM hierarchy h
+  JOIN parent_table ON h.id = parent_table.parentid
+)
+SELECT b.id AS blob_id, hb.name AS blob_csid
+FROM parent_table
+JOIN blobs_common b ON b.repositoryid = parent_table.id
+JOIN hierarchy hb ON hb.id = b.id
+WHERE hb.primarytype = 'Blob';
+----
